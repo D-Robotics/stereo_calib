@@ -6,6 +6,12 @@
 - [sgbm.py](sgbm.py)：sgmb算法实现
 - [data](data)：数据目录
 
+## 依赖包
+
+```shell
+pip install opencv-python
+pip install open3d
+```
 
 ## 标定流程
 
