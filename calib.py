@@ -26,8 +26,6 @@ class StereoCalib:
         # 做remap的映射矩阵
         self.map1_l = self.map2_l = None
         self.map1_r = self.map2_r = None
-        self.map1_l_pad = None
-        self.map1_r_pad = None
 
         self.res_calib = None
         self.path_save = None
@@ -118,8 +116,6 @@ class StereoCalib:
         self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, size, cv2.CV_32FC2)
 
         size = (self.width_l + 64, self.height_l + 64)
-        self.map1_l_pad, _ = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, size, cv2.CV_32FC2)
-        self.map1_r_pad, _ = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, size, cv2.CV_32FC2)
 
     def rectify_img(self, img_l, img_r):
         if self.map1_l is None:
@@ -134,10 +130,7 @@ class StereoCalib:
         img_l_rectified = cv2.remap(img_l, self.map1_l, self.map2_l, cv2.INTER_LINEAR)
         img_r_rectified = cv2.remap(img_r, self.map1_r, self.map2_r, cv2.INTER_LINEAR)
 
-        img_l_rectified_pad = cv2.remap(img_l, self.map1_l_pad, None, cv2.INTER_LINEAR)
-        img_r_rectified_pad = cv2.remap(img_r, self.map1_r_pad, None, cv2.INTER_LINEAR)
-
-        return img_l_rectified, img_r_rectified, img_l_rectified_pad, img_r_rectified_pad
+        return img_l_rectified, img_r_rectified
 
     def calib(self, dir_l, dir_r, row=12, col=9, block_size=20):
         """计算内外参及畸变"""
@@ -274,7 +267,7 @@ if __name__ == '__main__':
         _, right_filename = os.path.split(right_img_filepaths[i])
 
         print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
-        img_l_rectified, img_r_rectified, _, _ = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
+        img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
 
         result_dir = os.path.join(filedir, '..', 'rectify')
         os.makedirs(result_dir, exist_ok=True)
