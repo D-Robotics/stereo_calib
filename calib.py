@@ -176,6 +176,7 @@ class StereoCalib:
                 cv2.drawChessboardCorners(img_l_c, (points_per_row, points_per_col), corners_l, ret_l)
                 cv2.drawChessboardCorners(img_r_c, (points_per_row, points_per_col), corners_r, ret_r)
                 img_corners_show = np.concatenate((img_l_c, img_r_c), axis=1)
+                cv2.imwrite(f'{dir_l}/../chessboard/chessboard_{i+1}.png', img_corners_show)
                 cv2.namedWindow('show corners', 0)
                 cv2.resizeWindow('show corners', 640 * 2, 400)
                 cv2.imshow('show corners', img_corners_show)
@@ -227,33 +228,36 @@ class StereoCalib:
 
 if __name__ == '__main__':
     # 将combine的图像拆分成左右图像
-    # print('=> =================== 1 ====================')
-    # raw_dir = r'./data/calib_imgs/raw'
-    # for raw_filename in os.listdir(raw_dir):
-    #     print('=> =================================')
-    #     print(f'=> {raw_filename[-8:]}')
-    #     raw_filepath = os.path.join(raw_dir, raw_filename)
-    #     raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
-    #     height, width = raw_img.shape
-    #     print(f'=> height: {height}, width: {width}')
-    #     left_img = raw_img[:height//2, :]
-    #     right_img = raw_img[height//2:, :]
-    #     cv2.imwrite(rf'./{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-    #     cv2.imwrite(rf'./{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
-    #     print('=> =================================')
+    print('=> =================== 1 ====================')
+    raw_dir = r'./data/calib_imgs/raw'
+    for raw_filename in os.listdir(raw_dir):
+        print('=> =================================')
+        print(f'=> {raw_filename[-8:]}')
+        raw_filepath = os.path.join(raw_dir, raw_filename)
+        raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
+        height, width = raw_img.shape
+        print(f'=> height: {height}, width: {width}')
+        left_img = raw_img[:height//2, :]
+        right_img = raw_img[height//2:, :]
+        os.makedirs(rf'./{raw_dir}/../left', exist_ok=True)
+        os.makedirs(rf'./{raw_dir}/../right', exist_ok=True)
+        os.makedirs(rf'./{raw_dir}/../chessboard', exist_ok=True)
+        cv2.imwrite(rf'./{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+        cv2.imwrite(rf'./{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+        print('=> =================================')
 
     # 将标定，注意设置左右图像文件夹和标定板行列以及方块大小，这里是12行9列，每个方块100mm
     print('=> =================== 2 ====================')
     sc = StereoCalib()
-    sc.calib(dir_l=r'./data/calib_imgs/left', dir_r='./data/calib_imgs/right', row=12, col=9, block_size=100)
+    sc.calib(dir_l=rf'./{raw_dir}/../left', dir_r=rf'./{raw_dir}/../right', row=12, col=9, block_size=100)
     sc.prt_stereo_param()
-    sc.save_json('./data/calib_imgs/calib.json')
+    sc.save_json(rf'./{raw_dir}/../calib.json')
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
     left_img_filepaths = []
     right_img_filepaths = []
-    for filepath, dirnames, filenames in os.walk(r'./data/calib_imgs'):
+    for filepath, dirnames, filenames in os.walk(rf'./{raw_dir}/..'):
         for filename in filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
