@@ -6,26 +6,32 @@
 - [sgbm.py](sgbm.py)：sgmb算法实现
 - [data](data)：数据目录
 
-## 依赖包
+## 1、先安装依赖包
 
 ```shell
 pip install opencv-python
 pip install open3d
 ```
 
-## 代码运行流程
+## 2、再运行代码
 
 1. 需要采集20张以上的棋盘格图像，将采集的数据放在`./data/calib_imgs/raw`目录下，或者自定义目录也可以
 
 ![calib_raw.png](doc%2Fcalib_raw.png)
 
-2. 然后运行[calib.py](calib.py)进行标定，需要将`raw_dir`设置为棋盘格图像目录
+2. 然后运行[calib.py](calib.py)进行标定，需要将`raw_dir`设置为棋盘格图像目录，`row`、`col`、`block_size`按照棋盘格的尺寸进行设置
 
 ![calib_py.png](doc%2Fcalib_py.png)
+
+![chessboard.png](doc%2Fchessboard.png)
 
 3. 运行后将产生如下结果
 
 ![calib_result.png](doc%2Fcalib_result.png)
+
+## 3、最后测试地瓜双目功能包
+
+XXX
 
 ## 标定配置
 

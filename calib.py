@@ -8,6 +8,13 @@ import os
 import json
 import cv2
 import numpy as np
+import yaml
+
+
+# 自定义 Dumper 以确保列表保持单行输出
+class CustomDumper(yaml.SafeDumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super(CustomDumper, self).increase_indent(flow=flow, indentless=indentless)
 
 
 class StereoCalib:
@@ -95,6 +102,43 @@ class StereoCalib:
                 json.dump(self.res_calib, f, indent=4, ensure_ascii=False)
             print(f'Save Json: {os.path.abspath(path_save)}')
 
+    def save_yaml(self, path_save=None):
+        if path_save is None:
+            path_save = self.path_save
+
+        if path_save is None:
+            raise ValueError('保存路径未指定！')
+
+        txt_data = f"""%YAML:1.0
+stereo0:
+  cam0:
+    cam_overlaps: [1]
+    camera_model: pinhole
+    distortion_coeffs: [{self.distort_l[0, 0]}, {self.distort_l[0, 1]}, {self.distort_l[0, 2]}, {self.distort_l[0, 3]}, {self.distort_l[0, 4]}, {self.distort_l[0, 5]}, {self.distort_l[0, 6]}, {self.distort_l[0, 7]}]
+    distortion_model: radtan
+    intrinsics: [{self.intr_l[0, 0]}, {self.intr_l[1, 1]}, {self.intr_l[0, 2]}, {self.intr_l[1, 2]}]
+    resolution: [1280, 640]
+    rostopic: /cam0/image_raw
+  cam1:
+    T_cn_cnm1:
+      - [{self.R[0, 0]}, {self.R[0, 1]}, {self.R[0, 2]}, {self.t[0, 0]/1000}]
+      - [{self.R[1, 0]}, {self.R[1, 1]}, {self.R[1, 2]}, {self.t[1, 0]/1000}]
+      - [{self.R[2, 0]}, {self.R[2, 1]}, {self.R[2, 2]}, {self.t[2, 0]/1000}]
+      - [0.0, 0.0, 0.0, 1.0]
+    cam_overlaps: [0]
+    camera_model: pinhole
+    distortion_coeffs: [{self.distort_r[0, 0]}, {self.distort_r[0, 1]}, {self.distort_r[0, 2]}, {self.distort_r[0, 3]}, {self.distort_r[0, 4]}, {self.distort_r[0, 5]}, {self.distort_r[0, 6]}, {self.distort_r[0, 7]}]
+    distortion_model: radtan
+    intrinsics: [{self.intr_r[0, 0]}, {self.intr_r[1, 1]}, {self.intr_r[0, 2]}, {self.intr_r[1, 2]}]
+    resolution: [1280, 640]
+    rostopic: /cam1/image_raw
+"""
+
+        if path_save is not None:
+            with open(path_save, 'w', encoding='utf-8') as f:
+                f.write(txt_data)
+            print(f'Save yaml: {os.path.abspath(path_save)}')
+
     def prt_stereo_param(self):
         print(f'-- F B cx cy doffs: {self.Focal}, {self.B * 1}, {self.cx}, {self.cy}, {self.doffs}')
 
@@ -176,7 +220,7 @@ class StereoCalib:
                 cv2.drawChessboardCorners(img_l_c, (points_per_row, points_per_col), corners_l, ret_l)
                 cv2.drawChessboardCorners(img_r_c, (points_per_row, points_per_col), corners_r, ret_r)
                 img_corners_show = np.concatenate((img_l_c, img_r_c), axis=1)
-                cv2.imwrite(f'{dir_l}/../chessboard/chessboard_{i+1}.png', img_corners_show)
+                cv2.imwrite(f'{dir_l}/../chessboard/chessboard_{i + 1}.png', img_corners_show)
                 cv2.namedWindow('show corners', 0)
                 cv2.resizeWindow('show corners', 640 * 2, 400)
                 cv2.imshow('show corners', img_corners_show)
@@ -229,7 +273,14 @@ class StereoCalib:
 if __name__ == '__main__':
     # 将combine的图像拆分成左右图像
     print('=> =================== 1 ====================')
+    # =========== 需要设置的参数 ===========
     raw_dir = r'./data/calib_imgs/raw'
+    row = 12
+    col = 9
+    block_size = 100
+    # =========== 需要设置的参数 ===========
+    mode = 1
+    os.makedirs(rf'./{raw_dir}/../chessboard', exist_ok=True)
     for raw_filename in os.listdir(raw_dir):
         print('=> =================================')
         print(f'=> {raw_filename[-8:]}')
@@ -237,11 +288,14 @@ if __name__ == '__main__':
         raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
         height, width = raw_img.shape
         print(f'=> height: {height}, width: {width}')
-        left_img = raw_img[:height//2, :]
-        right_img = raw_img[height//2:, :]
+        if mode == 1:
+            left_img = raw_img[:height // 2, :]
+            right_img = raw_img[height // 2:, :]
+        else:
+            right_img = raw_img[:height // 2, :]
+            left_img = raw_img[height // 2:, :]
         os.makedirs(rf'./{raw_dir}/../left', exist_ok=True)
         os.makedirs(rf'./{raw_dir}/../right', exist_ok=True)
-        os.makedirs(rf'./{raw_dir}/../chessboard', exist_ok=True)
         cv2.imwrite(rf'./{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
         cv2.imwrite(rf'./{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
         print('=> =================================')
@@ -249,12 +303,31 @@ if __name__ == '__main__':
     # 将标定，注意设置左右图像文件夹和标定板行列以及方块大小，这里是12行9列，每个方块100mm
     print('=> =================== 2 ====================')
     sc = StereoCalib()
-    sc.calib(dir_l=rf'./{raw_dir}/../left', dir_r=rf'./{raw_dir}/../right', row=12, col=9, block_size=100)
+    sc.calib(dir_l=rf'./{raw_dir}/../left', dir_r=rf'./{raw_dir}/../right', row=row, col=col, block_size=block_size)
     sc.prt_stereo_param()
     sc.save_json(rf'./{raw_dir}/../calib.json')
+    sc.save_yaml(rf'./{raw_dir}/../stereo_8.yaml')
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
+    # raw_dir = r'./data/calc_disp-0819/raw'
+    # for raw_filename in os.listdir(raw_dir):
+    #     print('=> =================================')
+    #     print(f'=> {raw_filename[-8:]}')
+    #     if 'depth' in raw_filename: continue
+    #     raw_filepath = os.path.join(raw_dir, raw_filename)
+    #     raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
+    #     height, width = raw_img.shape
+    #     print(f'=> height: {height}, width: {width}')
+    #     left_img = raw_img[:height//2, :]
+    #     right_img = raw_img[height//2:, :]
+    #     os.makedirs(rf'./{raw_dir}/../left', exist_ok=True)
+    #     os.makedirs(rf'./{raw_dir}/../right', exist_ok=True)
+    #     cv2.imwrite(rf'./{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+    #     cv2.imwrite(rf'./{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+    #     print('=> =================================')
+
+    print('=> =================== 4 ====================')
     left_img_filepaths = []
     right_img_filepaths = []
     for filepath, dirnames, filenames in os.walk(rf'./{raw_dir}/..'):
