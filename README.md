@@ -16,9 +16,17 @@ pip install open3d
 
 ## 3、再运行代码
 
-1. 需要采集20张以上的棋盘格图像，将采集的数据放在`./data/calib_imgs/raw`目录下，或者自定义目录也可以，注意**采集图像时需要保证相机和棋盘格是静止状态**，否则容易标定失败，图像采集清参考[hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
+1. 需要采集20张以上的棋盘格图像，将采集的数据放在`./data/calib_imgs/raw`目录下，或者自定义目录也可以，图像采集请参考[hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
 
-![calib_raw.png](doc%2Fcalib_raw.png)
+   - 注意**采集图像时需要保证相机和棋盘格是静止状态**，否则容易标定失败
+   - 采集的距离视棋盘格大小而定，例子中的棋盘格大小是120cm*90cm，采集的距离大概是50cm~200cm，保证棋盘格占图像画面有一定的比例，如图所示
+     ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_001.png)
+     ![combine_020.png](data%2Fcalib_imgs%2Fraw%2Fcombine_020.png)
+   - 采集的角度大概在-30°~30°即可，可以调整棋盘格角度，也可以调整相机角度，如图所示
+     ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_012.png)
+     ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_009.png)
+
+     ![calib_raw.png](doc%2Fcalib_raw.png)
 
 2. 然后运行[calib.py](calib.py)进行标定，需要将`raw_dir`设置为棋盘格图像目录，`row`、`col`、`block_size`按照棋盘格的尺寸进行设置
 
