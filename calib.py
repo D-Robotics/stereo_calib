@@ -9,6 +9,7 @@ import json
 import cv2
 import numpy as np
 import yaml
+from utils.str_utils import colormsg
 
 
 # 自定义 Dumper 以确保列表保持单行输出
@@ -352,3 +353,10 @@ if __name__ == '__main__':
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
         # break
+
+    print('=================================================================================')
+    if sc.reproj_err_stereo < 0.5:
+        print(colormsg('=> 重投影误差小于0.5，标定成功，请确认rectify目录的图像是否矫正成功', color='green'))
+    else:
+        print(colormsg('=> 重投影误差大于0.5，标定失败，请重新采集棋盘格图像'))
+    print('=================================================================================')

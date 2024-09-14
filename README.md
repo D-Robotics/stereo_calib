@@ -40,6 +40,8 @@ pip install open3d
 
 4. 需要确认标定结果是否正确，查看`calib.json`文件中重投影误差是否小于0.5，并且查看`rectify`文件夹的图像是否矫正成功
 
+![calib_flag.png](doc%2Fcalib_flag.png)
+
 ## 4、最后测试双目功能包
 
 [hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
@@ -54,26 +56,26 @@ pip install open3d
 
 ```shell
 -- ====================== Stereo Calib Start ======================
--- ./data/calib_imgs/left\left_001.png ./data/calib_imgs/right\right_001.png
--- ./data/calib_imgs/left\left_002.png ./data/calib_imgs/right\right_002.png
--- ./data/calib_imgs/left\left_003.png ./data/calib_imgs/right\right_003.png
--- ./data/calib_imgs/left\left_004.png ./data/calib_imgs/right\right_004.png
--- ./data/calib_imgs/left\left_005.png ./data/calib_imgs/right\right_005.png
--- ./data/calib_imgs/left\left_006.png ./data/calib_imgs/right\right_006.png
--- ./data/calib_imgs/left\left_007.png ./data/calib_imgs/right\right_007.png
--- ./data/calib_imgs/left\left_008.png ./data/calib_imgs/right\right_008.png
--- ./data/calib_imgs/left\left_009.png ./data/calib_imgs/right\right_009.png
--- ./data/calib_imgs/left\left_010.png ./data/calib_imgs/right\right_010.png
--- ./data/calib_imgs/left\left_011.png ./data/calib_imgs/right\right_011.png
--- ./data/calib_imgs/left\left_012.png ./data/calib_imgs/right\right_012.png
--- ./data/calib_imgs/left\left_013.png ./data/calib_imgs/right\right_013.png
--- ./data/calib_imgs/left\left_014.png ./data/calib_imgs/right\right_014.png
--- ./data/calib_imgs/left\left_015.png ./data/calib_imgs/right\right_015.png
--- ./data/calib_imgs/left\left_016.png ./data/calib_imgs/right\right_016.png
--- ./data/calib_imgs/left\left_017.png ./data/calib_imgs/right\right_017.png
--- ./data/calib_imgs/left\left_018.png ./data/calib_imgs/right\right_018.png
--- ./data/calib_imgs/left\left_019.png ./data/calib_imgs/right\right_019.png
--- ./data/calib_imgs/left\left_020.png ./data/calib_imgs/right\right_020.png
+-- ./data/calib_imgs/raw/../left\left_001.png ./data/calib_imgs/raw/../right\right_001.png
+-- ./data/calib_imgs/raw/../left\left_002.png ./data/calib_imgs/raw/../right\right_002.png
+-- ./data/calib_imgs/raw/../left\left_003.png ./data/calib_imgs/raw/../right\right_003.png
+-- ./data/calib_imgs/raw/../left\left_004.png ./data/calib_imgs/raw/../right\right_004.png
+-- ./data/calib_imgs/raw/../left\left_005.png ./data/calib_imgs/raw/../right\right_005.png
+-- ./data/calib_imgs/raw/../left\left_006.png ./data/calib_imgs/raw/../right\right_006.png
+-- ./data/calib_imgs/raw/../left\left_007.png ./data/calib_imgs/raw/../right\right_007.png
+-- ./data/calib_imgs/raw/../left\left_008.png ./data/calib_imgs/raw/../right\right_008.png
+-- ./data/calib_imgs/raw/../left\left_009.png ./data/calib_imgs/raw/../right\right_009.png
+-- ./data/calib_imgs/raw/../left\left_010.png ./data/calib_imgs/raw/../right\right_010.png
+-- ./data/calib_imgs/raw/../left\left_011.png ./data/calib_imgs/raw/../right\right_011.png
+-- ./data/calib_imgs/raw/../left\left_012.png ./data/calib_imgs/raw/../right\right_012.png
+-- ./data/calib_imgs/raw/../left\left_013.png ./data/calib_imgs/raw/../right\right_013.png
+-- ./data/calib_imgs/raw/../left\left_014.png ./data/calib_imgs/raw/../right\right_014.png
+-- ./data/calib_imgs/raw/../left\left_015.png ./data/calib_imgs/raw/../right\right_015.png
+-- ./data/calib_imgs/raw/../left\left_016.png ./data/calib_imgs/raw/../right\right_016.png
+-- ./data/calib_imgs/raw/../left\left_017.png ./data/calib_imgs/raw/../right\right_017.png
+-- ./data/calib_imgs/raw/../left\left_018.png ./data/calib_imgs/raw/../right\right_018.png
+-- ./data/calib_imgs/raw/../left\left_019.png ./data/calib_imgs/raw/../right\right_019.png
+-- ./data/calib_imgs/raw/../left\left_020.png ./data/calib_imgs/raw/../right\right_020.png
 -- 左图重投影误差: 4.671930829291836, 右图重投影误差: 4.859185223701936
 -- left camera matrix:
  [[522.99618673   0.         640.69232983]
@@ -103,6 +105,10 @@ pip install open3d
 -- ======================= Stereo Calib End =======================
 -- F B cx cy doffs: 465.2104178592821, 69.82928990313776, 870.4762115478516, 221.603515625, -0.0
 Save Json: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\calib.json
+Save yaml: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\stereo_8.yaml
+=================================================================================
+=> 重投影误差小于0.5，标定成功，请确认rectify目录的图像是否矫正成功
+=================================================================================
 ```
 
 ## 6、极线矫正
