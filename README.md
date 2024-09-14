@@ -28,9 +28,11 @@ pip install open3d
 
      ![calib_raw.png](doc%2Fcalib_raw.png)
 
-2. 然后运行[calib.py](calib.py)进行标定，需要将`raw_dir`设置为棋盘格图像目录，`row`、`col`、`block_size`按照棋盘格的尺寸进行设置
+2. 然后运行[calib.py](calib.py)进行标定，需要将`raw_dir`设置为棋盘格图像目录，`row`、`col`、`block_size`按照棋盘格的尺寸进行设置，具体可查看下图，程序运行指令如下
 
-![calib_py.png](doc%2Fcalib_py.png)
+```shell
+python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=100
+```
 
 ![chessboard.png](doc%2Fchessboard.png)
 

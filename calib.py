@@ -3,19 +3,20 @@
 author:     zhikang.zeng
 time  :     2024-07-24 15:02
 """
+import argparse
 import glob
 import os
 import json
 import cv2
 import numpy as np
-import yaml
 from utils.str_utils import colormsg
 
-
-# 自定义 Dumper 以确保列表保持单行输出
-class CustomDumper(yaml.SafeDumper):
-    def increase_indent(self, flow=False, indentless=False):
-        return super(CustomDumper, self).increase_indent(flow=flow, indentless=indentless)
+parser = argparse.ArgumentParser(description="Stereo Calib")
+parser.add_argument("--raw_dir", type=str, default=r'./data/calib_imgs/raw', help='raw image dir')
+parser.add_argument("--row", type=int, default=12, help='the number of squares in a row of the chessboard')
+parser.add_argument("--col", type=int, default=9, help='the number of squares in a col chessboard')
+parser.add_argument("--block_size", type=int, default=100, help='chessboard block size')
+args = parser.parse_args()
 
 
 class StereoCalib:
@@ -122,9 +123,9 @@ stereo0:
     rostopic: /cam0/image_raw
   cam1:
     T_cn_cnm1:
-      - [{self.R[0, 0]}, {self.R[0, 1]}, {self.R[0, 2]}, {self.t[0, 0]/1000}]
-      - [{self.R[1, 0]}, {self.R[1, 1]}, {self.R[1, 2]}, {self.t[1, 0]/1000}]
-      - [{self.R[2, 0]}, {self.R[2, 1]}, {self.R[2, 2]}, {self.t[2, 0]/1000}]
+      - [{self.R[0, 0]}, {self.R[0, 1]}, {self.R[0, 2]}, {self.t[0, 0] / 1000}]
+      - [{self.R[1, 0]}, {self.R[1, 1]}, {self.R[1, 2]}, {self.t[1, 0] / 1000}]
+      - [{self.R[2, 0]}, {self.R[2, 1]}, {self.R[2, 2]}, {self.t[2, 0] / 1000}]
       - [0.0, 0.0, 0.0, 1.0]
     cam_overlaps: [0]
     camera_model: pinhole
@@ -275,10 +276,11 @@ if __name__ == '__main__':
     # 将combine的图像拆分成左右图像
     print('=> =================== 1 ====================')
     # =========== 需要设置的参数 ===========
-    raw_dir = r'./data/calib_imgs/raw'
-    row = 12
-    col = 9
-    block_size = 100
+    raw_dir = args.raw_dir
+    row = args.row
+    col = args.col
+    block_size = args.block_size
+    print(colormsg(f'=> param: raw_dir={raw_dir}, row={row}, col={col}, block_size={block_size}'))
     # =========== 需要设置的参数 ===========
     mode = 1
     os.makedirs(rf'{raw_dir}/../chessboard', exist_ok=True)
