@@ -1,21 +1,22 @@
 # 双目标定（OpenCV python实现）
 
-## 文件说明
+## 1、文件说明
 
 - [calib.py](calib.py)：标定、极线矫正代码实现
 - [sgbm.py](sgbm.py)：sgmb算法实现
 - [data](data)：数据目录
 
-## 1、先安装依赖包
+## 2、先安装依赖包
 
 ```shell
+# opencv版本需要大于4.5
 pip install opencv-python
 pip install open3d
 ```
 
-## 2、再运行代码
+## 3、再运行代码
 
-1. 需要采集20张以上的棋盘格图像，将采集的数据放在`./data/calib_imgs/raw`目录下，或者自定义目录也可以
+1. 需要采集20张以上的棋盘格图像，将采集的数据放在`./data/calib_imgs/raw`目录下，或者自定义目录也可以，注意**采集图像时需要保证相机和棋盘格是静止状态**，否则容易标定失败，图像采集清参考[hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
 
 ![calib_raw.png](doc%2Fcalib_raw.png)
 
@@ -29,11 +30,13 @@ pip install open3d
 
 ![calib_result.png](doc%2Fcalib_result.png)
 
-## 3、最后测试地瓜双目功能包
+4. 需要确认标定结果是否正确，查看`calib.json`文件中重投影误差是否小于0.5，并且查看`rectify`文件夹的图像是否矫正成功
 
-XXX
+## 4、最后测试双目功能包
 
-## 标定配置
+[hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
+
+## 5、标定配置
 
 在[calib.py](calib.py)代码中，有两个标志位可以设置，一个是单目标定的`calib_flags`，另一个是双目标定的`stereo_calib_flags`
 
@@ -94,13 +97,13 @@ XXX
 Save Json: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\calib.json
 ```
 
-## 极线矫正
+## 6、极线矫正
 
 极线矫正代码也在[calib.py](calib.py)中，也有一个标志位可以设置：`flags = cv2.CALIB_ZERO_DISPARITY`时左右图主点位置一致，`flags = 0`时左右图主点位置不一致，保留更大的fov，此时doffs不等于0
 
 深度计算的公式是：Depth = F * B / (Disparity + Doffs)
 
-## SGMB计算深度
+## 7、SGMB计算深度
 
 输入矫正后的图像和矫正后的内参，可通过[sgbm.py](sgbm.py)计算视差、深度、点云
 

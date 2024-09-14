@@ -280,7 +280,7 @@ if __name__ == '__main__':
     block_size = 100
     # =========== 需要设置的参数 ===========
     mode = 1
-    os.makedirs(rf'./{raw_dir}/../chessboard', exist_ok=True)
+    os.makedirs(rf'{raw_dir}/../chessboard', exist_ok=True)
     for raw_filename in os.listdir(raw_dir):
         print('=> =================================')
         print(f'=> {raw_filename[-8:]}')
@@ -294,19 +294,19 @@ if __name__ == '__main__':
         else:
             right_img = raw_img[:height // 2, :]
             left_img = raw_img[height // 2:, :]
-        os.makedirs(rf'./{raw_dir}/../left', exist_ok=True)
-        os.makedirs(rf'./{raw_dir}/../right', exist_ok=True)
-        cv2.imwrite(rf'./{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-        cv2.imwrite(rf'./{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+        os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
+        os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
+        cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+        cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
         print('=> =================================')
 
     # 将标定，注意设置左右图像文件夹和标定板行列以及方块大小，这里是12行9列，每个方块100mm
     print('=> =================== 2 ====================')
     sc = StereoCalib()
-    sc.calib(dir_l=rf'./{raw_dir}/../left', dir_r=rf'./{raw_dir}/../right', row=row, col=col, block_size=block_size)
+    sc.calib(dir_l=rf'{raw_dir}/../left', dir_r=rf'{raw_dir}/../right', row=row, col=col, block_size=block_size)
     sc.prt_stereo_param()
-    sc.save_json(rf'./{raw_dir}/../calib.json')
-    sc.save_yaml(rf'./{raw_dir}/../stereo_8.yaml')
+    sc.save_json(rf'{raw_dir}/../calib.json')
+    sc.save_yaml(rf'{raw_dir}/../stereo_8.yaml')
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     print('=> =================== 4 ====================')
     left_img_filepaths = []
     right_img_filepaths = []
-    for filepath, dirnames, filenames in os.walk(rf'./{raw_dir}/..'):
+    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}/..'):
         for filename in filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
