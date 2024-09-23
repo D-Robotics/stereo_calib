@@ -1,3 +1,16 @@
+# Copyright (c) 2024，D-Robotics.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 # -*- coding: utf-8 -*-
 """
 author:     zhikang.zeng
@@ -16,11 +29,12 @@ parser.add_argument("--raw_dir", type=str, default=r'./data/calib_imgs/raw', hel
 parser.add_argument("--row", type=int, default=12, help='the number of squares in a row of the chessboard')
 parser.add_argument("--col", type=int, default=9, help='the number of squares in a col chessboard')
 parser.add_argument("--block_size", type=int, default=100, help='chessboard block size')
+parser.add_argument("--mode", type=int, default=1, help='left up right down mode=1; left down right up mode=2')
 args = parser.parse_args()
 
 
 class StereoCalib:
-    def __init__(self, path_json=None):
+    def __init__(self):
         self.width_l = self.height_l = None
         self.width_r = self.height_r = None
         self.intr_l = self.distort_l = None
@@ -38,9 +52,6 @@ class StereoCalib:
 
         self.res_calib = None
         self.path_save = None
-
-        if path_json is not None:
-            self.load_json(path_json)
 
     def save_json(self, path_save=None):
         if path_save is None:
@@ -271,6 +282,153 @@ stereo0:
         self.calc_map()
         print('-- ======================= Stereo Calib End =======================')
 
+    def load_json_lh(self, path_json):
+        with open(path_json, 'r', encoding='utf-8') as f:
+            calib = json.load(f)
+
+        self.width_l, self.height_l = int(calib['width']), int(calib['height'])
+        self.width_r, self.height_r = int(calib['width']), int(calib['height'])
+
+        self.intr_l = np.array([
+            [float(calib['camera_matrix_left']['data'][0]), float(calib['camera_matrix_left']['data'][1]),
+             float(calib['camera_matrix_left']['data'][2])],
+            [float(calib['camera_matrix_left']['data'][3]), float(calib['camera_matrix_left']['data'][4]),
+             float(calib['camera_matrix_left']['data'][5])],
+            [float(calib['camera_matrix_left']['data'][6]), float(calib['camera_matrix_left']['data'][7]),
+             float(calib['camera_matrix_left']['data'][8])]
+        ])
+        self.distort_l = np.array([[
+            float(calib['distortion_l']['data'][0]),
+            float(calib['distortion_l']['data'][1]),
+            float(calib['distortion_l']['data'][6]),
+            float(calib['distortion_l']['data'][7]),
+            float(calib['distortion_l']['data'][2]),
+            float(calib['distortion_l']['data'][3]),
+            float(calib['distortion_l']['data'][4]),
+            float(calib['distortion_l']['data'][5]),
+        ]])
+
+        self.intr_r = np.array([
+            [float(calib['camera_matrix_right']['data'][0]), float(calib['camera_matrix_right']['data'][1]),
+             float(calib['camera_matrix_right']['data'][2])],
+            [float(calib['camera_matrix_right']['data'][3]), float(calib['camera_matrix_right']['data'][4]),
+             float(calib['camera_matrix_right']['data'][5])],
+            [float(calib['camera_matrix_right']['data'][6]), float(calib['camera_matrix_right']['data'][7]),
+             float(calib['camera_matrix_right']['data'][8])]
+        ])
+        self.distort_r = np.array([[
+            float(calib['distortion_r']['data'][0]),
+            float(calib['distortion_r']['data'][1]),
+            float(calib['distortion_r']['data'][6]),
+            float(calib['distortion_r']['data'][7]),
+            float(calib['distortion_r']['data'][2]),
+            float(calib['distortion_r']['data'][3]),
+            float(calib['distortion_r']['data'][4]),
+            float(calib['distortion_r']['data'][5]),
+        ]])
+        # 旋转矩阵和平移向量
+        self.R = np.array([
+            [float(calib['R']['data'][0]), float(calib['R']['data'][1]), float(calib['R']['data'][2])],
+            [float(calib['R']['data'][3]), float(calib['R']['data'][4]), float(calib['R']['data'][5])],
+            [float(calib['R']['data'][6]), float(calib['R']['data'][7]), float(calib['R']['data'][8])]
+        ])
+        self.t = np.array([float(calib['T']['data'][0]) * 1000, float(calib['T']['data'][1]) * 1000,
+                           float(calib['T']['data'][2]) * 1000])
+        self.calc_map()
+        print(f'-- Load [{path_json}] Success!')
+
+    def load_json(self, path_json):
+        with open(path_json, 'r', encoding='utf-8') as f:
+            calib = json.load(f)
+
+        self.width_l, self.height_l = calib['Left']['Width'], calib['Left']['Height']
+        self.width_r, self.height_r = calib['Right']['Width'], calib['Right']['Height']
+
+        self.intr_l = np.array([
+            [calib['Left']['Fx'], 0, calib['Left']['Cx']],
+            [0, calib['Left']['Fy'], calib['Left']['Cy']],
+            [0, 0, 1]
+        ])
+        self.distort_l = np.array([[calib['Left']['K1'], calib['Left']['K2'],
+                                    calib['Left']['P1'], calib['Left']['P2'], calib['Left']['K3'],
+                                    calib['Left']['K4'], calib['Left']['K5'], calib['Left']['K6']
+                                    ]])
+
+        self.intr_r = np.array([
+            [calib['Right']['Fx'], 0, calib['Right']['Cx']],
+            [0, calib['Right']['Fy'], calib['Right']['Cy']],
+            [0, 0, 1]
+        ])
+        self.distort_r = np.array([[calib['Right']['K1'], calib['Right']['K2'],
+                                    calib['Right']['P1'], calib['Right']['P2'], calib['Right']['K3'],
+                                    calib['Right']['K4'], calib['Right']['K5'], calib['Right']['K6']
+                                    ]])
+        # 旋转矩阵和平移向量
+        self.R = np.array(calib['Rotate'])
+        self.t = np.array(calib['Trans'])
+        self.calc_map()
+        print(f'-- Load [{path_json}] Success!')
+
+
+if __name__ == '__main2__':
+    print('=> =================== 1 ====================')
+    calib_file_path = './data/calib_lh_20240918/json/m2.json'
+    print(f'=>=== Load calib json: {calib_file_path}')
+    sc = StereoCalib()
+    sc.load_json_lh(calib_file_path)
+    # sc.load_json(r'./data/calib_imgs/calib.json')
+    print('-- left camera matrix:\n', sc.intr_l)
+    print('-- left distortion coeffs:', sc.distort_l)
+    print('-- right camera matrix:\n', sc.intr_r)
+    print('-- right distortion coeffs:', sc.distort_r)
+    print('-- R:\n', sc.R)
+    print('-- T:\n', sc.t)
+    sc.prt_stereo_param()
+
+    # 极线矫正，注意读入的图像目录
+    print('=> =================== 2 ====================')
+    raw_dir = r'./data/calib_lh_20240918/M2'
+    for raw_filename in os.listdir(raw_dir):
+        print('=> =================================')
+        if 'depth' in raw_filename: continue
+        if not raw_filename.endswith(('.png', '.jpg')): continue
+        print(f'=> {raw_filename}')
+        raw_filepath = os.path.join(raw_dir, raw_filename)
+        raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
+        height, width = raw_img.shape
+        print(f'=> height: {height}, width: {width}')
+        left_img = raw_img[height // 2:, :width // 2]
+        right_img = raw_img[height // 2:, width // 2:]
+        os.makedirs(rf'{raw_dir}/left', exist_ok=True)
+        os.makedirs(rf'{raw_dir}/right', exist_ok=True)
+        cv2.imwrite(rf'{raw_dir}/left/left{raw_filename[-8:]}', left_img)
+        cv2.imwrite(rf'{raw_dir}/right/right{raw_filename[-8:]}', right_img)
+        print('=> =================================')
+
+    print('=> =================== 3 ====================')
+    left_img_filepaths = []
+    right_img_filepaths = []
+    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}'):
+        for filename in filenames:
+            tmp_path = (os.path.join(filepath, filename))
+            if 'left' in tmp_path and 'rectify' not in tmp_path:
+                left_img_filepaths.append(tmp_path)
+            if 'right' in tmp_path and 'rectify' not in tmp_path:
+                right_img_filepaths.append(tmp_path)
+
+    assert len(left_img_filepaths) == len(right_img_filepaths)
+    for i in range(len(left_img_filepaths)):
+        filedir, left_filename = os.path.split(left_img_filepaths[i])
+        _, right_filename = os.path.split(right_img_filepaths[i])
+
+        print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
+        img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
+
+        result_dir = os.path.join(filedir, '..', 'rectify')
+        os.makedirs(result_dir, exist_ok=True)
+
+        cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
+        cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
 
 if __name__ == '__main__':
     # 将combine的图像拆分成左右图像
@@ -280,13 +438,13 @@ if __name__ == '__main__':
     row = args.row
     col = args.col
     block_size = args.block_size
-    print(colormsg(f'=> param: raw_dir={raw_dir}, row={row}, col={col}, block_size={block_size}'))
+    mode = args.mode
+    print(colormsg(f'=> param: raw_dir={raw_dir}, row={row}, col={col}, block_size={block_size}, mode={mode}'))
     # =========== 需要设置的参数 ===========
-    mode = 1
     os.makedirs(rf'{raw_dir}/../chessboard', exist_ok=True)
     for raw_filename in os.listdir(raw_dir):
-        print('=> =================================')
-        print(f'=> {raw_filename[-8:]}')
+        print('=> -------------------------------')
+        print(f'=> {raw_filename}')
         raw_filepath = os.path.join(raw_dir, raw_filename)
         raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
         height, width = raw_img.shape
@@ -301,7 +459,6 @@ if __name__ == '__main__':
         os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
         cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
         cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
-        print('=> =================================')
 
     # 将标定，注意设置左右图像文件夹和标定板行列以及方块大小，这里是12行9列，每个方块100mm
     print('=> =================== 2 ====================')
@@ -324,10 +481,10 @@ if __name__ == '__main__':
     #     print(f'=> height: {height}, width: {width}')
     #     left_img = raw_img[:height//2, :]
     #     right_img = raw_img[height//2:, :]
-    #     os.makedirs(rf'./{raw_dir}/../left', exist_ok=True)
-    #     os.makedirs(rf'./{raw_dir}/../right', exist_ok=True)
-    #     cv2.imwrite(rf'./{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-    #     cv2.imwrite(rf'./{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+    #     os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
+    #     os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
+    #     cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+    #     cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
     #     print('=> =================================')
 
     print('=> =================== 4 ====================')
