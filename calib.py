@@ -122,12 +122,16 @@ class StereoCalib:
         if path_save is None:
             raise ValueError('保存路径未指定！')
 
+        distort_l_values = [f"{self.distort_l[0, i]}" for i in range(self.distort_l.size) if self.distort_l[0, i] != 0]
+        distort_l_string = f"[{', '.join(distort_l_values)}]"
+        distort_r_values = [f"{self.distort_r[0, i]}" for i in range(self.distort_r.size) if self.distort_r[0, i] != 0]
+        distort_r_string = f"[{', '.join(distort_r_values)}]"
         txt_data = f"""%YAML:1.0
 stereo0:
   cam0:
     cam_overlaps: [1]
     camera_model: pinhole
-    distortion_coeffs: [{self.distort_l[0, 0]}, {self.distort_l[0, 1]}, {self.distort_l[0, 2]}, {self.distort_l[0, 3]}, {self.distort_l[0, 4]}, {self.distort_l[0, 5]}, {self.distort_l[0, 6]}, {self.distort_l[0, 7]}]
+    distortion_coeffs: {distort_l_string}
     distortion_model: radtan
     intrinsics: [{self.intr_l[0, 0]}, {self.intr_l[1, 1]}, {self.intr_l[0, 2]}, {self.intr_l[1, 2]}]
     resolution: [1280, 640]
@@ -140,7 +144,7 @@ stereo0:
       - [0.0, 0.0, 0.0, 1.0]
     cam_overlaps: [0]
     camera_model: pinhole
-    distortion_coeffs: [{self.distort_r[0, 0]}, {self.distort_r[0, 1]}, {self.distort_r[0, 2]}, {self.distort_r[0, 3]}, {self.distort_r[0, 4]}, {self.distort_r[0, 5]}, {self.distort_r[0, 6]}, {self.distort_r[0, 7]}]
+    distortion_coeffs: {distort_r_string}
     distortion_model: radtan
     intrinsics: [{self.intr_r[0, 0]}, {self.intr_r[1, 1]}, {self.intr_r[0, 2]}, {self.intr_r[1, 2]}]
     resolution: [1280, 640]
@@ -263,6 +267,7 @@ stereo0:
         # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
         stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
         # stereo_calib_flags = cv2.CALIB_FIX_INTRINSIC
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS
         # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
         stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
         self.reproj_err_stereo, self.intr_l, self.distort_l, self.intr_r, self.distort_r, \
@@ -372,7 +377,7 @@ stereo0:
 
 if __name__ == '__main2__':
     print('=> =================== 1 ====================')
-    calib_file_path = './data/calib_lh_20240918/json/m2.json'
+    calib_file_path = r'D:/3_HoBot/3_RDK_X3_X5/14_Stereo/calib_lh_20240918/json/m2.json'
     print(f'=>=== Load calib json: {calib_file_path}')
     sc = StereoCalib()
     sc.load_json_lh(calib_file_path)
@@ -387,7 +392,7 @@ if __name__ == '__main2__':
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 2 ====================')
-    raw_dir = r'./data/calib_lh_20240918/M2'
+    raw_dir = r'D:/3_HoBot/3_RDK_X3_X5/14_Stereo/calib_lh_20240918/M2'
     for raw_filename in os.listdir(raw_dir):
         print('=> =================================')
         if 'depth' in raw_filename: continue
@@ -431,6 +436,7 @@ if __name__ == '__main2__':
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
 
 if __name__ == '__main__':
+    # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed\raw --row=12 --col=9 --block_size=20
     # 将combine的图像拆分成左右图像
     print('=> =================== 1 ====================')
     # =========== 需要设置的参数 ===========
