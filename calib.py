@@ -58,7 +58,7 @@ class StereoCalib:
             path_save = self.path_save
 
         if path_save is None:
-            raise ValueError('保存路径未指定！')
+            raise ValueError('The save path is not set!')
 
         self.res_calib = {
             'Stereo': {
@@ -120,7 +120,7 @@ class StereoCalib:
             path_save = self.path_save
 
         if path_save is None:
-            raise ValueError('保存路径未指定！')
+            raise ValueError('The save path is not set!')
 
         distort_l_values = [f"{self.distort_l[0, i]}" for i in range(self.distort_l.size) if self.distort_l[0, i] != 0]
         distort_l_string = f"[{', '.join(distort_l_values)}]"
@@ -161,15 +161,18 @@ stereo0:
 
     def calc_map(self):
         if self.intr_l is None:
-            raise ValueError('内外参未计算！')
+            raise ValueError('Internal and external parameters are not calculated!')
 
         # 计算相机的修正变换
         size = (self.width_l, self.height_l)
         flags = cv2.CALIB_ZERO_DISPARITY  # 主点一致
         # flags = 0  # 主点不一致
+        alpha = -1
+        # alpha = 0
+        # alpha = 1
         R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(self.intr_l, self.distort_l,
                                                     self.intr_r, self.distort_r,
-                                                    size, self.R, self.t, flags=flags)
+                                                    size, self.R, self.t, flags=flags, alpha=alpha)
         self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[3, 2]
 
         # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
@@ -185,8 +188,10 @@ stereo0:
         if isinstance(img_l, str) and isinstance(img_r, str):
             # img_l = cv2.imread(img_l, cv2.IMREAD_GRAYSCALE)
             # img_r = cv2.imread(img_r, cv2.IMREAD_GRAYSCALE)
-            img_l = cv2.imdecode(np.fromfile(img_l, dtype=np.uint8), -1)
-            img_r = cv2.imdecode(np.fromfile(img_r, dtype=np.uint8), -1)
+            img_l = cv2.imread(img_l, cv2.IMREAD_COLOR)
+            img_r = cv2.imread(img_r, cv2.IMREAD_COLOR)
+            # img_l = cv2.imdecode(np.fromfile(img_l, dtype=np.uint8), -1)
+            # img_r = cv2.imdecode(np.fromfile(img_r, dtype=np.uint8), -1)
 
         img_l_rectified = cv2.remap(img_l, self.map1_l, self.map2_l, cv2.INTER_LINEAR)
         img_r_rectified = cv2.remap(img_r, self.map1_r, self.map2_r, cv2.INTER_LINEAR)
@@ -256,7 +261,7 @@ stereo0:
                                                                                   None, flags=calib_flags)
         reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size, None,
                                                                                   None, flags=calib_flags)
-        print(f'-- 左图重投影误差: {reproj_err_l}, 右图重投影误差: {reproj_err_r}')
+        print(f'-- Left image reprojection error: {reproj_err_l}, Right image reprojection error: {reproj_err_r}')
 
         # 立体标定
         # flags = 0
@@ -283,7 +288,7 @@ stereo0:
         print('-- right distortion coeffs:', self.distort_r)
         print('-- R:\n', self.R)
         print('-- T:\n', self.t)
-        print(f'-- 双目标定重投影误差: {self.reproj_err_stereo}')
+        print(f'-- Stereo reprojection error: {self.reproj_err_stereo}')
         self.calc_map()
         print('-- ======================= Stereo Calib End =======================')
 
@@ -337,8 +342,8 @@ stereo0:
             [float(calib['R']['data'][3]), float(calib['R']['data'][4]), float(calib['R']['data'][5])],
             [float(calib['R']['data'][6]), float(calib['R']['data'][7]), float(calib['R']['data'][8])]
         ])
-        self.t = np.array([float(calib['T']['data'][0]) * 1000, float(calib['T']['data'][1]) * 1000,
-                           float(calib['T']['data'][2]) * 1000])
+        self.t = np.array([[float(calib['T']['data'][0]) * 1000], [float(calib['T']['data'][1]) * 1000],
+                           [float(calib['T']['data'][2]) * 1000]])
         self.calc_map()
         print(f'-- Load [{path_json}] Success!')
 
@@ -377,11 +382,12 @@ stereo0:
 
 if __name__ == '__main2__':
     print('=> =================== 1 ====================')
-    calib_file_path = r'D:/3_HoBot/3_RDK_X3_X5/14_Stereo/calib_lh_20240918/json/m2.json'
+    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed-mini\calib.json'
+    calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\json\m.json'
     print(f'=>=== Load calib json: {calib_file_path}')
     sc = StereoCalib()
     sc.load_json_lh(calib_file_path)
-    # sc.load_json(r'./data/calib_imgs/calib.json')
+    # sc.load_json(calib_file_path)
     print('-- left camera matrix:\n', sc.intr_l)
     print('-- left distortion coeffs:', sc.distort_l)
     print('-- right camera matrix:\n', sc.intr_r)
@@ -389,31 +395,34 @@ if __name__ == '__main2__':
     print('-- R:\n', sc.R)
     print('-- T:\n', sc.t)
     sc.prt_stereo_param()
+    sc.save_yaml(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\stereo_8_lh.yaml')
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 2 ====================')
-    raw_dir = r'D:/3_HoBot/3_RDK_X3_X5/14_Stereo/calib_lh_20240918/M2'
-    for raw_filename in os.listdir(raw_dir):
-        print('=> =================================')
-        if 'depth' in raw_filename: continue
-        if not raw_filename.endswith(('.png', '.jpg')): continue
-        print(f'=> {raw_filename}')
-        raw_filepath = os.path.join(raw_dir, raw_filename)
-        raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
-        height, width = raw_img.shape
-        print(f'=> height: {height}, width: {width}')
-        left_img = raw_img[height // 2:, :width // 2]
-        right_img = raw_img[height // 2:, width // 2:]
-        os.makedirs(rf'{raw_dir}/left', exist_ok=True)
-        os.makedirs(rf'{raw_dir}/right', exist_ok=True)
-        cv2.imwrite(rf'{raw_dir}/left/left{raw_filename[-8:]}', left_img)
-        cv2.imwrite(rf'{raw_dir}/right/right{raw_filename[-8:]}', right_img)
-        print('=> =================================')
+    raw_dir = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\lh'
+    # for raw_filename in os.listdir(raw_dir):
+    #     print('=> =================================')
+    #     if 'depth' in raw_filename: continue
+    #     if not raw_filename.endswith(('.png', '.jpg')): continue
+    #     print(f'=> {raw_filename}')
+    #     raw_filepath = os.path.join(raw_dir, raw_filename)
+    #     raw_img = cv2.imread(raw_filepath, cv2.IMREAD_COLOR)
+    #     height, width, _ = raw_img.shape
+    #     print(f'=> height: {height}, width: {width}')
+    #     # left_img = raw_img[height // 2:, :width // 2]
+    #     # right_img = raw_img[height // 2:, width // 2:]
+    #     left_img = raw_img[:height // 2, :]
+    #     right_img = raw_img[height // 2:, :]
+    #     os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
+    #     os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
+    #     cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+    #     cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+    #     print('=> =================================')
 
     print('=> =================== 3 ====================')
     left_img_filepaths = []
     right_img_filepaths = []
-    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}'):
+    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}/..'):
         for filename in filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
@@ -429,7 +438,7 @@ if __name__ == '__main2__':
         print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
         img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
 
-        result_dir = os.path.join(filedir, '..', 'rectify')
+        result_dir = os.path.join(filedir, '..', 'rectify_lh_verify')
         os.makedirs(result_dir, exist_ok=True)
 
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
@@ -437,6 +446,8 @@ if __name__ == '__main2__':
 
 if __name__ == '__main__':
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed\raw --row=12 --col=9 --block_size=20
+    # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1009-6\raw
+    # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\lh --row=21 --col=12 --block_size=60
     # 将combine的图像拆分成左右图像
     print('=> =================== 1 ====================')
     # =========== 需要设置的参数 ===========
@@ -521,7 +532,7 @@ if __name__ == '__main__':
 
     print('=================================================================================')
     if sc.reproj_err_stereo < 0.5:
-        print(colormsg('=> 重投影误差小于0.5，标定成功，请确认rectify目录的图像是否矫正成功', color='green'))
+        print(colormsg('=> The reprojection error is less than 0.5, and the calibration is successful. Please confirm whether the image in the `rectify` directory has been corrected successfully.', color='green'))
     else:
-        print(colormsg('=> 重投影误差大于0.5，标定失败，请重新采集棋盘格图像'))
+        print(colormsg('=> The reprojection error is greater than 0.5, and the calibration failed. Please collect the checkerboard image again..'))
     print('=================================================================================')
