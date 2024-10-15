@@ -14,7 +14,6 @@
 
 ```shell
 pip install opencv-python
-pip install open3d
 ```
 
 ### 安装ROS2软件包编译工具
@@ -37,7 +36,7 @@ colcon build --packages-select hobot_stereonet_utils
   ```shell
   source /opt/tros/humble/setup.bash
   source install/local_setup.bash
-  ros2 launch hobot_stereonet_utils test_cam.launch.py
+  ros2 launch hobot_stereonet_utils test_mipi_cam.launch.py
   ```
 
 - 在终端2启动双目图像采集工具：
@@ -47,7 +46,7 @@ colcon build --packages-select hobot_stereonet_utils
   source install/local_setup.bash
   # 创建数据存放目录
   mkdir -p /userdata/data/calib_imgs/raw
-  ros2 run hobot_stereonet_utils hobot_stereonet_utils --ros-args -p dir:=/userdata/data/calib_imgs/raw
+  ros2 run hobot_stereonet_utils save_stereo_img --ros-args -p dir:=/userdata/data/calib_imgs/raw
   ```
 
 采集数据的过程中，PC端浏览器输入`http://ip:8000`地址查看实时的双目图像，用于确认图像是否正确。
