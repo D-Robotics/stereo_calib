@@ -78,7 +78,31 @@ python ./stereo_calib/calib.py --raw_dir=/userdata/data/calib_imgs/raw --row=12 
 
 标定完成后，终端输出标定成功或失败提示。如果提示成功，查看`/userdata/data/calib_imgs/rectify`文件夹的图像是否矫正成功。矫正成功后，即可使用生成的标定结果文件`/userdata/data/calib_imgs/stereo_8.yaml`。
 
-## 5、验证标定结果
+5. 标定失败案例
+
+- 重投影误差大于0.5
+
+![calib_error1.png](doc%2Fcalib_error1.png)
+
+- 重投影误差小于0.5，但标定参数存在异常，`rectify`文件夹的图像完全错误
+
+![calib_error1.png](doc%2Fcalib_error2.png)
+
+- 重投影误差小于0.5，`rectify`文件夹的图像存在异常，这种情况标定参数不是完全不能用，只是会影响深度精度，例如
+
+![calib_error2.png](doc%2Fcalib_error3.png)
+
+![calib_error2.png](doc%2Fcalib_error4.png)
+
+![calib_error2.png](doc%2Fcalib_error5.png)
+
+![calib_error2.png](doc%2Fcalib_error6.png)
+
+![calib_error2.png](doc%2Fcalib_error7.png)
+
+**出现以上情况请重新采集图像再进行标定**
+
+## 6、验证标定结果
 
 标定结束后，停止终端1和终端2下的程序，使用上一步生成的标定结果文件`/userdata/data/calib_imgs/stereo_8.yaml`启动双目图像采集：
 
@@ -90,7 +114,7 @@ ros2 launch hobot_stereonet_utils test_stereo.launch.py stereo_calib_path:=/user
 
 PC端浏览器输入`http://ip:8000`地址查看实时的双目图像，可以看到图像已经矫正成功。
 
-## 6、使用标定结果
+## 7、使用标定结果
 
 将标定结果文件拷贝到TROS双目深度估计算法安装路径，覆盖默认的标定文件，完成标定文件的更新。启动双目深度估计算法时，将会使用新的标定结果文件进行深度估计。
 
