@@ -17,6 +17,7 @@ author:     zhikang.zeng
 time  :     2024-07-24 15:02
 """
 import argparse
+import copy
 import glob
 import os
 import json
@@ -169,6 +170,7 @@ stereo0:
         # flags = 0  # 主点不一致
         alpha = -1
         # alpha = 0
+        # alpha = 0.5
         # alpha = 1
         R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(self.intr_l, self.distort_l,
                                                     self.intr_r, self.distort_r,
@@ -178,8 +180,6 @@ stereo0:
         # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
         self.map1_l, self.map2_l = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, size, cv2.CV_32FC2)
         self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, size, cv2.CV_32FC2)
-
-        size = (self.width_l + 64, self.height_l + 64)
 
     def rectify_img(self, img_l, img_r):
         if self.map1_l is None:
@@ -254,13 +254,38 @@ stereo0:
         size = (self.width_l, self.height_l)
 
         # 单目标定，得到重投影误差、内参、畸变参、外参Rt
+        # calib_criteria = None
+        calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
         calib_flags = None
+        # calib_flags = cv2.CALIB_FIX_K1
+        # calib_flags = cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
         # calib_flags = cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
+        # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST
+        # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
         # calib_flags = cv2.CALIB_RATIONAL_MODEL
         reproj_err_l, self.intr_l, self.distort_l, R_l, t_l = cv2.calibrateCamera(pts_world, pts_img_l, size, None,
-                                                                                  None, flags=calib_flags)
-        reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size, None,
-                                                                                  None, flags=calib_flags)
+                                                                                  None, flags=calib_flags,
+                                                                                  criteria=calib_criteria)
+        # reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size, None,
+        #                                                                           None, flags=calib_flags,
+        #                                                                           criteria=calib_criteria)
+        calib_flags = None
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
+        # # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
+        reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size,
+                                                                                  copy.deepcopy(self.intr_l),
+                                                                                  copy.deepcopy(self.distort_l),
+                                                                                  flags=calib_flags,
+                                                                                  criteria=calib_criteria)
         print(f'-- Left image reprojection error: {reproj_err_l}, Right image reprojection error: {reproj_err_r}')
 
         # 立体标定
@@ -271,10 +296,19 @@ stereo0:
         # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT  # 不改变cx、cy，可能导致内参不准，一般不启用
         # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
         stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+        # stereo_calib_flags = cv2.CALIB_FIX_PRINCIPAL_POINT
         # stereo_calib_flags = cv2.CALIB_FIX_INTRINSIC
+        # stereo_calib_flags = cv2.CALIB_SAME_FOCAL_LENGTH
         # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS
+        # stereo_calib_flags = cv2.CALIB_RATIONAL_MODEL
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
         # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
         stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
+        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
         self.reproj_err_stereo, self.intr_l, self.distort_l, self.intr_r, self.distort_r, \
             self.R, self.t, self.E, self.F = cv2.stereoCalibrate(pts_world, pts_img_l, pts_img_r,
                                                                  self.intr_l, self.distort_l, self.intr_r,
@@ -383,7 +417,9 @@ stereo0:
 if __name__ == '__main2__':
     print('=> =================== 1 ====================')
     # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed-mini\calib.json'
-    calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\json\m.json'
+    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\json\m.json'
+    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\calib.json'
+    calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1018-lh-1\stereo_4_1_lh_1018.json'  # rectified fx: 468.224548, fy: 468.224548, cx: 648.605103, cy: 298.273071, base_line: :0.069716
     print(f'=>=== Load calib json: {calib_file_path}')
     sc = StereoCalib()
     sc.load_json_lh(calib_file_path)
@@ -395,11 +431,11 @@ if __name__ == '__main2__':
     print('-- R:\n', sc.R)
     print('-- T:\n', sc.t)
     sc.prt_stereo_param()
-    sc.save_yaml(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\stereo_8_lh.yaml')
+    # sc.save_yaml(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\stereo_8_lh.yaml')
+    # sc.save_json(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\depth-analyse\230ai-stereo-imgs\stereo_8_custom.json')
 
-    # 极线矫正，注意读入的图像目录
-    print('=> =================== 2 ====================')
-    raw_dir = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\lh'
+    # print('=> =================== 2 ====================')
+    raw_dir = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\depth-analyse\230ai-stereo-imgs\raw'
     # for raw_filename in os.listdir(raw_dir):
     #     print('=> =================================')
     #     if 'depth' in raw_filename: continue
@@ -419,6 +455,7 @@ if __name__ == '__main2__':
     #     cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
     #     print('=> =================================')
 
+    # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
     left_img_filepaths = []
     right_img_filepaths = []
@@ -438,11 +475,13 @@ if __name__ == '__main2__':
         print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
         img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
 
-        result_dir = os.path.join(filedir, '..', 'rectify_lh_verify')
+        result_dir = os.path.join(filedir, '..', 'rectify_kalibr')
         os.makedirs(result_dir, exist_ok=True)
 
-        cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
-        cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
+        # cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
+        # cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
+        cv2.imwrite(os.path.join(result_dir, f'left{i + 1:>06}.png'), img_l_rectified)
+        cv2.imwrite(os.path.join(result_dir, f'right{i + 1:>06}.png'), img_r_rectified)
 
 if __name__ == '__main__':
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed\raw --row=12 --col=9 --block_size=20
@@ -532,7 +571,10 @@ if __name__ == '__main__':
 
     print('=================================================================================')
     if sc.reproj_err_stereo < 0.5:
-        print(colormsg('=> The reprojection error is less than 0.5, and the calibration is successful. Please confirm whether the image in the `rectify` directory has been corrected successfully.', color='green'))
+        print(colormsg(
+            '=> The reprojection error is less than 0.5, and the calibration is successful. Please confirm whether the image in the `rectify` directory has been corrected successfully.',
+            color='green'))
     else:
-        print(colormsg('=> The reprojection error is greater than 0.5, and the calibration failed. Please collect the checkerboard image again..'))
+        print(colormsg(
+            '=> The reprojection error is greater than 0.5, and the calibration failed. Please collect the checkerboard image again..'))
     print('=================================================================================')
