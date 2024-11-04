@@ -21,6 +21,8 @@ import copy
 import glob
 import os
 import json
+import shutil
+
 import cv2
 import numpy as np
 from utils.str_utils import colormsg
@@ -254,12 +256,12 @@ stereo0:
         size = (self.width_l, self.height_l)
 
         # 单目标定，得到重投影误差、内参、畸变参、外参Rt
-        # calib_criteria = None
-        calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
-        calib_flags = None
+        calib_criteria = None
+        # calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+        # calib_flags = None
         # calib_flags = cv2.CALIB_FIX_K1
         # calib_flags = cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_FIX_K3
+        calib_flags = cv2.CALIB_FIX_K3
         # calib_flags = cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
         # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST
         # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
@@ -271,10 +273,10 @@ stereo0:
         # reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size, None,
         #                                                                           None, flags=calib_flags,
         #                                                                           criteria=calib_criteria)
-        calib_flags = None
+        # calib_flags = None
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_FIX_K3
+        calib_flags = cv2.CALIB_FIX_K3
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
@@ -497,6 +499,14 @@ if __name__ == '__main__':
     mode = args.mode
     print(colormsg(f'=> param: raw_dir={raw_dir}, row={row}, col={col}, block_size={block_size}, mode={mode}'))
     # =========== 需要设置的参数 ===========
+    if os.path.isdir(rf'{raw_dir}/../chessboard'):
+        shutil.rmtree(rf'{raw_dir}/../chessboard')
+    if os.path.isdir(rf'{raw_dir}/../left'):
+        shutil.rmtree(rf'{raw_dir}/../left')
+    if os.path.isdir(rf'{raw_dir}/../right'):
+        shutil.rmtree(rf'{raw_dir}/../right')
+    if os.path.isdir(rf'{raw_dir}/../rectify'):
+        shutil.rmtree(rf'{raw_dir}/../rectify')
     os.makedirs(rf'{raw_dir}/../chessboard', exist_ok=True)
     for raw_filename in os.listdir(raw_dir):
         print('=> -------------------------------')
