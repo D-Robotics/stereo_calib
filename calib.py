@@ -33,6 +33,8 @@ parser.add_argument("--row", type=int, default=12, help='the number of squares i
 parser.add_argument("--col", type=int, default=9, help='the number of squares in a col chessboard')
 parser.add_argument("--block_size", type=int, default=100, help='chessboard block size')
 parser.add_argument("--mode", type=int, default=1, help='left up right down mode=1; left down right up mode=2')
+parser.add_argument("--rect_w", type=int, default=-1, help='rectify image width')
+parser.add_argument("--rect_h", type=int, default=-1, help='rectify image height')
 args = parser.parse_args()
 
 
@@ -137,7 +139,7 @@ stereo0:
     distortion_coeffs: {distort_l_string}
     distortion_model: radtan
     intrinsics: [{self.intr_l[0, 0]}, {self.intr_l[1, 1]}, {self.intr_l[0, 2]}, {self.intr_l[1, 2]}]
-    resolution: [1280, 640]
+    resolution: [{self.width_l}, {self.height_l}]
     rostopic: /cam0/image_raw
   cam1:
     T_cn_cnm1:
@@ -150,7 +152,7 @@ stereo0:
     distortion_coeffs: {distort_r_string}
     distortion_model: radtan
     intrinsics: [{self.intr_r[0, 0]}, {self.intr_r[1, 1]}, {self.intr_r[0, 2]}, {self.intr_r[1, 2]}]
-    resolution: [1280, 640]
+    resolution: [{self.width_r}, {self.height_r}]
     rostopic: /cam1/image_raw
 """
 
@@ -168,20 +170,25 @@ stereo0:
 
         # 计算相机的修正变换
         size = (self.width_l, self.height_l)
+        if args.rect_w != -1 and args.rect_h != -1:
+            new_size = (args.rect_w, args.rect_h)
+        else:
+            new_size = size
         flags = cv2.CALIB_ZERO_DISPARITY  # 主点一致
         # flags = 0  # 主点不一致
-        alpha = -1
-        # alpha = 0
+        # alpha = -1
+        alpha = 0
         # alpha = 0.5
         # alpha = 1
         R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(self.intr_l, self.distort_l,
                                                     self.intr_r, self.distort_r,
-                                                    size, self.R, self.t, flags=flags, alpha=alpha)
+                                                    size, self.R, self.t, flags=flags, alpha=alpha,
+                                                    newImageSize=new_size)
         self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[3, 2]
 
         # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
-        self.map1_l, self.map2_l = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, size, cv2.CV_32FC2)
-        self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, size, cv2.CV_32FC2)
+        self.map1_l, self.map2_l = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, new_size, cv2.CV_32FC2)
+        self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, new_size, cv2.CV_32FC2)
 
     def rectify_img(self, img_l, img_r):
         if self.map1_l is None:
@@ -276,13 +283,13 @@ stereo0:
         # calib_flags = None
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
-        calib_flags = cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
+        # calib_flags = cv2.CALIB_FIX_K3
+        calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
         # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
-        # # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
+        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
         reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size,
                                                                                   copy.deepcopy(self.intr_l),
                                                                                   copy.deepcopy(self.distort_l),
@@ -298,6 +305,7 @@ stereo0:
         # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT  # 不改变cx、cy，可能导致内参不准，一般不启用
         # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
         stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+        # stereo_calib_flags = None
         # stereo_calib_flags = cv2.CALIB_FIX_PRINCIPAL_POINT
         # stereo_calib_flags = cv2.CALIB_FIX_INTRINSIC
         # stereo_calib_flags = cv2.CALIB_SAME_FOCAL_LENGTH
@@ -577,6 +585,10 @@ if __name__ == '__main__':
 
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
+        img_l_rectified = np.where(img_l_rectified == (0, 0, 0), (0, 0, 255), img_l_rectified)
+        img_r_rectified = np.where(img_r_rectified == (0, 0, 0), (0, 0, 255), img_r_rectified)
+        cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-visual-left.png'), img_l_rectified)
+        cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-visual-right.png'), img_r_rectified)
         # break
 
     print('=================================================================================')
