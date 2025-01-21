@@ -32,9 +32,11 @@ parser.add_argument("--raw_dir", type=str, default=r'./data/calib_imgs/raw', hel
 parser.add_argument("--row", type=int, default=12, help='the number of squares in a row of the chessboard')
 parser.add_argument("--col", type=int, default=9, help='the number of squares in a col chessboard')
 parser.add_argument("--block_size", type=int, default=100, help='chessboard block size')
-parser.add_argument("--mode", type=int, default=1, help='left up right down mode=1; left down right up mode=2')
+parser.add_argument("--left_up", type=bool, default=True,
+                    help='left up right down left_up=True; left down right up left_up=False')
 parser.add_argument("--rect_w", type=int, default=-1, help='rectify image width')
 parser.add_argument("--rect_h", type=int, default=-1, help='rectify image height')
+parser.add_argument("--model", type=str, default='pinhole', help='opt [pinhole, fish]')
 args = parser.parse_args()
 
 
@@ -65,55 +67,102 @@ class StereoCalib:
         if path_save is None:
             raise ValueError('The save path is not set!')
 
-        self.res_calib = {
-            'Stereo': {
-                'F': self.Focal,
-                'B': self.B,
-                'Cx': self.cx,
-                'Cy': self.cy,
-                'Doffs': self.doffs,
-                'Reprojection Error': self.reproj_err_stereo,
-                'Depth': 'Depth = F * B / (Disparity + Doffs)'
-            },
-            'Left': {
-                'Width': self.width_l,
-                'Height': self.height_l,
-                'Fx': self.intr_l[0, 0],
-                'Fy': self.intr_l[1, 1],
-                'Cx': self.intr_l[0, 2],
-                'Cy': self.intr_l[1, 2],
-                'K1': self.distort_l[0, 0],
-                'K2': self.distort_l[0, 1],
-                'K3': self.distort_l[0, 4],
-                'P1': self.distort_l[0, 2],
-                'P2': self.distort_l[0, 3],
-                'K4': 0.0 if self.distort_l.size == 5 else self.distort_l[0, 5],
-                'K5': 0.0 if self.distort_l.size == 5 else self.distort_l[0, 6],
-                'K6': 0.0 if self.distort_l.size == 5 else self.distort_l[0, 7],
-                'K': [self.intr_l[0, 0], self.intr_l[1, 1], self.intr_l[0, 2], self.intr_l[1, 2]],
-                'D': self.distort_l.flatten().tolist()
-            },
-            'Right': {
-                'Width': self.width_r,
-                'Height': self.height_r,
-                'Fx': self.intr_r[0, 0],
-                'Fy': self.intr_r[1, 1],
-                'Cx': self.intr_r[0, 2],
-                'Cy': self.intr_r[1, 2],
-                'K1': self.distort_r[0, 0],
-                'K2': self.distort_r[0, 1],
-                'K3': self.distort_r[0, 4],
-                'P1': self.distort_r[0, 2],
-                'P2': self.distort_r[0, 3],
-                'K4': 0.0 if self.distort_r.size == 5 else self.distort_r[0, 5],
-                'K5': 0.0 if self.distort_r.size == 5 else self.distort_r[0, 6],
-                'K6': 0.0 if self.distort_r.size == 5 else self.distort_r[0, 7],
-                'K': [self.intr_r[0, 0], self.intr_r[1, 1], self.intr_r[0, 2], self.intr_r[1, 2]],
-                'D': self.distort_r.flatten().tolist()
-            },
-            'Rotate': self.R.squeeze().tolist(),
-            'Trans': self.t.squeeze().tolist(),
-        }
+        if args.model == 'pinhole':
+            self.res_calib = {
+                'Stereo': {
+                    'F': self.Focal,
+                    'B': self.B,
+                    'Cx': self.cx,
+                    'Cy': self.cy,
+                    'Doffs': self.doffs,
+                    'Reprojection Error': self.reproj_err_stereo,
+                    'Depth': 'Depth = F * B / (Disparity + Doffs)',
+                    'Model': args.model
+                },
+                'Left': {
+                    'Width': self.width_l,
+                    'Height': self.height_l,
+                    'Fx': self.intr_l[0, 0],
+                    'Fy': self.intr_l[1, 1],
+                    'Cx': self.intr_l[0, 2],
+                    'Cy': self.intr_l[1, 2],
+                    'K1': self.distort_l[0, 0],
+                    'K2': self.distort_l[0, 1],
+                    'K3': self.distort_l[0, 4],
+                    'P1': self.distort_l[0, 2],
+                    'P2': self.distort_l[0, 3],
+                    'K4': 0.0 if self.distort_l.size == 5 else self.distort_l[0, 5],
+                    'K5': 0.0 if self.distort_l.size == 5 else self.distort_l[0, 6],
+                    'K6': 0.0 if self.distort_l.size == 5 else self.distort_l[0, 7],
+                    'K': [self.intr_l[0, 0], self.intr_l[1, 1], self.intr_l[0, 2], self.intr_l[1, 2]],
+                    'D': self.distort_l.flatten().tolist()
+                },
+                'Right': {
+                    'Width': self.width_r,
+                    'Height': self.height_r,
+                    'Fx': self.intr_r[0, 0],
+                    'Fy': self.intr_r[1, 1],
+                    'Cx': self.intr_r[0, 2],
+                    'Cy': self.intr_r[1, 2],
+                    'K1': self.distort_r[0, 0],
+                    'K2': self.distort_r[0, 1],
+                    'K3': self.distort_r[0, 4],
+                    'P1': self.distort_r[0, 2],
+                    'P2': self.distort_r[0, 3],
+                    'K4': 0.0 if self.distort_r.size == 5 else self.distort_r[0, 5],
+                    'K5': 0.0 if self.distort_r.size == 5 else self.distort_r[0, 6],
+                    'K6': 0.0 if self.distort_r.size == 5 else self.distort_r[0, 7],
+                    'K': [self.intr_r[0, 0], self.intr_r[1, 1], self.intr_r[0, 2], self.intr_r[1, 2]],
+                    'D': self.distort_r.flatten().tolist()
+                },
+                'Rotate': self.R.squeeze().tolist(),
+                'Trans': self.t.squeeze().tolist(),
+            }
+        elif args.model == 'fish':
+            self.res_calib = {
+                'Stereo': {
+                    'F': self.Focal,
+                    'B': self.B,
+                    'Cx': self.cx,
+                    'Cy': self.cy,
+                    'Doffs': self.doffs,
+                    'Reprojection Error': self.reproj_err_stereo,
+                    'Depth': 'Depth = F * B / (Disparity + Doffs)',
+                    'Model': args.model
+                },
+                'Left': {
+                    'Width': self.width_l,
+                    'Height': self.height_l,
+                    'Fx': self.intr_l[0, 0],
+                    'Fy': self.intr_l[1, 1],
+                    'Cx': self.intr_l[0, 2],
+                    'Cy': self.intr_l[1, 2],
+                    'θ1': self.distort_l[0, 0],
+                    'θ2': self.distort_l[1, 0],
+                    'θ3': self.distort_l[2, 0],
+                    'θ4': self.distort_l[3, 0],
+                    'K': [self.intr_l[0, 0], self.intr_l[1, 1], self.intr_l[0, 2], self.intr_l[1, 2]],
+                    'D': self.distort_l.flatten().tolist()
+                },
+                'Right': {
+                    'Width': self.width_r,
+                    'Height': self.height_r,
+                    'Fx': self.intr_r[0, 0],
+                    'Fy': self.intr_r[1, 1],
+                    'Cx': self.intr_r[0, 2],
+                    'Cy': self.intr_r[1, 2],
+                    'θ1': self.distort_r[0, 0],
+                    'θ2': self.distort_r[1, 0],
+                    'θ3': self.distort_r[2, 0],
+                    'θ4': self.distort_r[3, 0],
+                    'K': [self.intr_r[0, 0], self.intr_r[1, 1], self.intr_r[0, 2], self.intr_r[1, 2]],
+                    'D': self.distort_r.flatten().tolist()
+                },
+                'Rotate': self.R.squeeze().tolist(),
+                'Trans': self.t.squeeze().tolist(),
+            }
+        else:
+            raise NotImplementedError
 
         if path_save is not None:
             with open(path_save, 'w', encoding='utf-8') as f:
@@ -127,15 +176,25 @@ class StereoCalib:
         if path_save is None:
             raise ValueError('The save path is not set!')
 
-        distort_l_values = [f"{self.distort_l[0, i]}" for i in range(self.distort_l.size) if self.distort_l[0, i] != 0]
-        distort_l_string = f"[{', '.join(distort_l_values)}]"
-        distort_r_values = [f"{self.distort_r[0, i]}" for i in range(self.distort_r.size) if self.distort_r[0, i] != 0]
-        distort_r_string = f"[{', '.join(distort_r_values)}]"
+        if args.model == 'pinhole':
+            distort_l_values = [f"{self.distort_l[0, i]}" for i in range(self.distort_l.size) if
+                                self.distort_l[0, i] != 0]
+            distort_l_string = f"[{', '.join(distort_l_values)}]"
+            distort_r_values = [f"{self.distort_r[0, i]}" for i in range(self.distort_r.size) if
+                                self.distort_r[0, i] != 0]
+            distort_r_string = f"[{', '.join(distort_r_values)}]"
+        elif args.model == 'fish':
+            distort_l_values = [f"{self.distort_l[i]}" for i in range(self.distort_l.size)]
+            distort_l_string = f"[{', '.join(distort_l_values)}]"
+            distort_r_values = [f"{self.distort_r[i]}" for i in range(self.distort_r.size)]
+            distort_r_string = f"[{', '.join(distort_r_values)}]"
+        else:
+            raise NotImplementedError
         txt_data = f"""%YAML:1.0
 stereo0:
   cam0:
     cam_overlaps: [1]
-    camera_model: pinhole
+    camera_model: {args.model}
     distortion_coeffs: {distort_l_string}
     distortion_model: radtan
     intrinsics: [{self.intr_l[0, 0]}, {self.intr_l[1, 1]}, {self.intr_l[0, 2]}, {self.intr_l[1, 2]}]
@@ -148,7 +207,7 @@ stereo0:
       - [{self.R[2, 0]}, {self.R[2, 1]}, {self.R[2, 2]}, {self.t[2, 0] / 1000}]
       - [0.0, 0.0, 0.0, 1.0]
     cam_overlaps: [0]
-    camera_model: pinhole
+    camera_model: {args.model}
     distortion_coeffs: {distort_r_string}
     distortion_model: radtan
     intrinsics: [{self.intr_r[0, 0]}, {self.intr_r[1, 1]}, {self.intr_r[0, 2]}, {self.intr_r[1, 2]}]
@@ -174,21 +233,42 @@ stereo0:
             new_size = (args.rect_w, args.rect_h)
         else:
             new_size = size
-        flags = cv2.CALIB_ZERO_DISPARITY  # 主点一致
-        # flags = 0  # 主点不一致
-        # alpha = -1
-        alpha = 0
-        # alpha = 0.5
-        # alpha = 1
-        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(self.intr_l, self.distort_l,
-                                                    self.intr_r, self.distort_r,
-                                                    size, self.R, self.t, flags=flags, alpha=alpha,
-                                                    newImageSize=new_size)
-        self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[3, 2]
+        if args.model == 'pinhole':
+            flags = cv2.CALIB_ZERO_DISPARITY  # 主点一致
+            # flags = 0  # 主点不一致
+            # alpha = -1
+            alpha = 0
+            # alpha = 0.5
+            # alpha = 1
+            R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(self.intr_l, self.distort_l,
+                                                        self.intr_r, self.distort_r,
+                                                        size, self.R, self.t, flags=flags, alpha=alpha,
+                                                        newImageSize=new_size)
+            self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[
+                3, 2]
 
-        # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
-        self.map1_l, self.map2_l = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, new_size, cv2.CV_32FC2)
-        self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, new_size, cv2.CV_32FC2)
+            # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
+            self.map1_l, self.map2_l = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, new_size,
+                                                                   cv2.CV_32FC2)
+            self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, new_size,
+                                                                   cv2.CV_32FC2)
+        elif args.model == 'fish':
+            flags = cv2.fisheye.CALIB_ZERO_DISPARITY  # 主点一致
+            balance = 0
+            fov_scale = 0.8
+            R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(self.intr_l, self.distort_l, self.intr_r, self.distort_r,
+                                                          size, self.R, self.t, flags=flags, newImageSize=new_size,
+                                                          balance=balance, fov_scale=fov_scale)
+            self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[
+                3, 2]
+
+            # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
+            self.map1_l, self.map2_l = cv2.fisheye.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1,
+                                                                           new_size, cv2.CV_32F)
+            self.map1_r, self.map2_r = cv2.fisheye.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2,
+                                                                           new_size, cv2.CV_32F)
+        else:
+            raise NotImplementedError
 
     def rectify_img(self, img_l, img_r):
         if self.map1_l is None:
@@ -262,70 +342,96 @@ stereo0:
         self.height_r, self.width_r = img_r.shape
         size = (self.width_l, self.height_l)
 
-        # 单目标定，得到重投影误差、内参、畸变参、外参Rt
-        calib_criteria = None
-        # calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
-        # calib_flags = None
-        # calib_flags = cv2.CALIB_FIX_K1
-        # calib_flags = cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
-        calib_flags = cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
-        # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST
-        # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
-        # calib_flags = cv2.CALIB_RATIONAL_MODEL
-        reproj_err_l, self.intr_l, self.distort_l, R_l, t_l = cv2.calibrateCamera(pts_world, pts_img_l, size, None,
-                                                                                  None, flags=calib_flags,
-                                                                                  criteria=calib_criteria)
-        # reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size, None,
-        #                                                                           None, flags=calib_flags,
-        #                                                                           criteria=calib_criteria)
-        # calib_flags = None
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_FIX_K3
-        calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
-        # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
-        reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size,
-                                                                                  copy.deepcopy(self.intr_l),
-                                                                                  copy.deepcopy(self.distort_l),
-                                                                                  flags=calib_flags,
-                                                                                  criteria=calib_criteria)
-        print(f'-- Left image reprojection error: {reproj_err_l}, Right image reprojection error: {reproj_err_r}')
+        if args.model == 'pinhole':
+            # 单目标定，得到重投影误差、内参、畸变参、外参Rt
+            calib_criteria = None
+            # calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+            # calib_flags = None
+            # calib_flags = cv2.CALIB_FIX_K1
+            # calib_flags = cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
+            calib_flags = cv2.CALIB_FIX_K3
+            # calib_flags = cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
+            # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST
+            # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
+            # calib_flags = cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
+            # calib_flags = cv2.CALIB_RATIONAL_MODEL
+            reproj_err_l, self.intr_l, self.distort_l, R_l, t_l = cv2.calibrateCamera(pts_world, pts_img_l, size, None,
+                                                                                      None, flags=calib_flags,
+                                                                                      criteria=calib_criteria)
+            # reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size, None,
+            #                                                                           None, flags=calib_flags,
+            #                                                                           criteria=calib_criteria)
+            # calib_flags = None
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
+            # calib_flags = cv2.CALIB_FIX_K3
+            calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
+            reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.calibrateCamera(pts_world, pts_img_r, size,
+                                                                                      copy.deepcopy(self.intr_l),
+                                                                                      copy.deepcopy(self.distort_l),
+                                                                                      flags=calib_flags,
+                                                                                      criteria=calib_criteria)
+            print(f'-- Left image reprojection error: {reproj_err_l}, Right image reprojection error: {reproj_err_r}')
 
-        # 立体标定
-        # flags = 0
-        # flags |= cv2.CALIB_FIX_INTRINSIC  # 不改变内参，只求解R、T、E、F
-        # flags |= cv2.CALIB_USE_INTRINSIC_GUESS  # 优化内参
-        # flags |= cv2.CALIB_SAME_FOCAL_LENGTH  # 保持两相机的焦距一致，若有CALIB_FIX_PRINCIPAL_POINT，则主点也一致
-        # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT  # 不改变cx、cy，可能导致内参不准，一般不启用
-        # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
-        stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
-        # stereo_calib_flags = None
-        # stereo_calib_flags = cv2.CALIB_FIX_PRINCIPAL_POINT
-        # stereo_calib_flags = cv2.CALIB_FIX_INTRINSIC
-        # stereo_calib_flags = cv2.CALIB_SAME_FOCAL_LENGTH
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS
-        # stereo_calib_flags = cv2.CALIB_RATIONAL_MODEL
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
-        stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
-        # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
-        self.reproj_err_stereo, self.intr_l, self.distort_l, self.intr_r, self.distort_r, \
-            self.R, self.t, self.E, self.F = cv2.stereoCalibrate(pts_world, pts_img_l, pts_img_r,
-                                                                 self.intr_l, self.distort_l, self.intr_r,
-                                                                 self.distort_r,
-                                                                 size, criteria=stereo_calib_criteria,
-                                                                 flags=stereo_calib_flags)
-
+            # 立体标定
+            # flags = 0
+            # flags |= cv2.CALIB_FIX_INTRINSIC  # 不改变内参，只求解R、T、E、F
+            # flags |= cv2.CALIB_USE_INTRINSIC_GUESS  # 优化内参
+            # flags |= cv2.CALIB_SAME_FOCAL_LENGTH  # 保持两相机的焦距一致，若有CALIB_FIX_PRINCIPAL_POINT，则主点也一致
+            # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT  # 不改变cx、cy，可能导致内参不准，一般不启用
+            # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
+            stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+            # stereo_calib_flags = None
+            # stereo_calib_flags = cv2.CALIB_FIX_PRINCIPAL_POINT
+            # stereo_calib_flags = cv2.CALIB_FIX_INTRINSIC
+            # stereo_calib_flags = cv2.CALIB_SAME_FOCAL_LENGTH
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS
+            # stereo_calib_flags = cv2.CALIB_RATIONAL_MODEL
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
+            stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
+            self.reproj_err_stereo, self.intr_l, self.distort_l, self.intr_r, self.distort_r, \
+                self.R, self.t, self.E, self.F = cv2.stereoCalibrate(pts_world, pts_img_l, pts_img_r,
+                                                                     self.intr_l, self.distort_l, self.intr_r,
+                                                                     self.distort_r,
+                                                                     size, criteria=stereo_calib_criteria,
+                                                                     flags=stereo_calib_flags)
+        elif args.model == 'fish':
+            pts_world = [pts[None, ...] for pts in pts_world]
+            calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
+            calib_flags = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW
+            reproj_err_l, self.intr_l, self.distort_l, R_l, t_l = cv2.fisheye.calibrate(pts_world, pts_img_l, size,
+                                                                                        None, None, flags=calib_flags,
+                                                                                        criteria=calib_criteria)
+            calib_flags = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW
+            reproj_err_r, self.intr_r, self.distort_r, R_r, t_r = cv2.fisheye.calibrate(pts_world, pts_img_r, size,
+                                                                                        copy.deepcopy(self.intr_l),
+                                                                                        copy.deepcopy(self.distort_l),
+                                                                                        flags=calib_flags,
+                                                                                        criteria=calib_criteria)
+            print(f'-- Left image reprojection error: {reproj_err_l}, Right image reprojection error: {reproj_err_r}')
+            stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
+            stereo_calib_flags = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW
+            pts_img_l = [np.squeeze(pts)[None, ...] for pts in pts_img_l]
+            pts_img_r = [np.squeeze(pts)[None, ...] for pts in pts_img_r]
+            self.reproj_err_stereo, self.intr_l, self.distort_l, self.intr_r, self.distort_r, \
+                self.R, self.t, self.E, self.F = cv2.fisheye.stereoCalibrate(pts_world, pts_img_l, pts_img_r,
+                                                                             self.intr_l, self.distort_l,
+                                                                             self.intr_r, self.distort_r,
+                                                                             size, criteria=stereo_calib_criteria,
+                                                                             flags=stereo_calib_flags)
+        else:
+            raise NotImplementedError
         print('-- left camera matrix:\n', self.intr_l)
         print('-- left distortion coeffs:', self.distort_l)
         print('-- right camera matrix:\n', self.intr_r)
@@ -496,51 +602,58 @@ if __name__ == '__main2__':
 if __name__ == '__main__':
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed\raw --row=12 --col=9 --block_size=20
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1009-6\raw
-    # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\lh --row=21 --col=12 --block_size=60
+    # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\data\calib_20\raw --row=21 --col=12 --block_size=60
+    # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\data\sc1336_raw_720p\raw --row=10 --col=6 --block_size=40 --model=fish
     # 将combine的图像拆分成左右图像
     print('=> =================== 1 ====================')
+    assert args.model in ['pinhole', 'fish']
     # =========== 需要设置的参数 ===========
-    raw_dir = args.raw_dir
-    row = args.row
-    col = args.col
-    block_size = args.block_size
-    mode = args.mode
-    print(colormsg(f'=> param: raw_dir={raw_dir}, row={row}, col={col}, block_size={block_size}, mode={mode}'))
+    print(colormsg(f'=> param:'
+                   f'=> raw_dir={args.raw_dir}\n'
+                   f'=> row={args.row}\n'
+                   f'=> col={args.col}\n'
+                   f'=> block_size={args.block_size}\n'
+                   f'=> left_up={args.left_up}\n'
+                   f'=> rect_w={args.rect_w}\n'
+                   f'=> rect_h={args.rect_h}\n'
+                   f'=> model={args.model}\n'
+                   ))
     # =========== 需要设置的参数 ===========
-    if os.path.isdir(rf'{raw_dir}/../chessboard'):
-        shutil.rmtree(rf'{raw_dir}/../chessboard')
-    if os.path.isdir(rf'{raw_dir}/../left'):
-        shutil.rmtree(rf'{raw_dir}/../left')
-    if os.path.isdir(rf'{raw_dir}/../right'):
-        shutil.rmtree(rf'{raw_dir}/../right')
-    if os.path.isdir(rf'{raw_dir}/../rectify'):
-        shutil.rmtree(rf'{raw_dir}/../rectify')
-    os.makedirs(rf'{raw_dir}/../chessboard', exist_ok=True)
-    for raw_filename in os.listdir(raw_dir):
+    if os.path.isdir(rf'{args.raw_dir}/../chessboard'):
+        shutil.rmtree(rf'{args.raw_dir}/../chessboard')
+    if os.path.isdir(rf'{args.raw_dir}/../left'):
+        shutil.rmtree(rf'{args.raw_dir}/../left')
+    if os.path.isdir(rf'{args.raw_dir}/../right'):
+        shutil.rmtree(rf'{args.raw_dir}/../right')
+    if os.path.isdir(rf'{args.raw_dir}/../rectify'):
+        shutil.rmtree(rf'{args.raw_dir}/../rectify')
+    os.makedirs(rf'{args.raw_dir}/../chessboard', exist_ok=True)
+    for raw_filename in os.listdir(args.raw_dir):
         print('=> -------------------------------')
         print(f'=> {raw_filename}')
-        raw_filepath = os.path.join(raw_dir, raw_filename)
+        raw_filepath = os.path.join(args.raw_dir, raw_filename)
         raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
         height, width = raw_img.shape
         print(f'=> height: {height}, width: {width}')
-        if mode == 1:
+        if args.left_up:
             left_img = raw_img[:height // 2, :]
             right_img = raw_img[height // 2:, :]
         else:
             right_img = raw_img[:height // 2, :]
             left_img = raw_img[height // 2:, :]
-        os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
-        os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
-        cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-        cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+        os.makedirs(rf'{args.raw_dir}/../left', exist_ok=True)
+        os.makedirs(rf'{args.raw_dir}/../right', exist_ok=True)
+        cv2.imwrite(rf'{args.raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+        cv2.imwrite(rf'{args.raw_dir}/../right/right{raw_filename[-8:]}', right_img)
 
     # 将标定，注意设置左右图像文件夹和标定板行列以及方块大小，这里是12行9列，每个方块100mm
     print('=> =================== 2 ====================')
     sc = StereoCalib()
-    sc.calib(dir_l=rf'{raw_dir}/../left', dir_r=rf'{raw_dir}/../right', row=row, col=col, block_size=block_size)
+    sc.calib(dir_l=rf'{args.raw_dir}/../left', dir_r=rf'{args.raw_dir}/../right', row=args.row, col=args.col,
+             block_size=args.block_size)
     sc.prt_stereo_param()
-    sc.save_json(rf'{raw_dir}/../calib.json')
-    sc.save_yaml(rf'{raw_dir}/../stereo_8.yaml')
+    sc.save_json(rf'{args.raw_dir}/../calib_{args.model}.json')
+    sc.save_yaml(rf'{args.raw_dir}/../stereo_{args.model}.yaml')
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
@@ -550,7 +663,7 @@ if __name__ == '__main__':
     #     print(f'=> {raw_filename[-8:]}')
     #     if 'depth' in raw_filename: continue
     #     raw_filepath = os.path.join(raw_dir, raw_filename)
-    #     raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
+    #     raw_img = cv2.imread(raw_filepath, cv2.IMREAD_COLOR)
     #     height, width = raw_img.shape
     #     print(f'=> height: {height}, width: {width}')
     #     left_img = raw_img[:height//2, :]
@@ -564,7 +677,7 @@ if __name__ == '__main__':
     print('=> =================== 4 ====================')
     left_img_filepaths = []
     right_img_filepaths = []
-    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}/..'):
+    for filepath, dirnames, filenames in os.walk(rf'{args.raw_dir}/..'):
         for filename in filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
@@ -582,6 +695,9 @@ if __name__ == '__main__':
 
         result_dir = os.path.join(filedir, '..', 'rectify')
         os.makedirs(result_dir, exist_ok=True)
+
+        # cv2.imwrite(os.path.join(result_dir, f'left{i + 1:>06}.png'), img_l_rectified)
+        # cv2.imwrite(os.path.join(result_dir, f'right{i + 1:>06}.png'), img_r_rectified)
 
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
         cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
