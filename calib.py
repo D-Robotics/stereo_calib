@@ -37,6 +37,7 @@ parser.add_argument("--left_up", type=bool, default=True,
 parser.add_argument("--rect_w", type=int, default=-1, help='rectify image width')
 parser.add_argument("--rect_h", type=int, default=-1, help='rectify image height')
 parser.add_argument("--model", type=str, default='pinhole', help='opt [pinhole, fish]')
+parser.add_argument("--fov_scale", type=float, default=0.8, help='fisheye rectify fov scale')
 args = parser.parse_args()
 
 
@@ -184,9 +185,9 @@ class StereoCalib:
                                 self.distort_r[0, i] != 0]
             distort_r_string = f"[{', '.join(distort_r_values)}]"
         elif args.model == 'fish':
-            distort_l_values = [f"{self.distort_l[i]}" for i in range(self.distort_l.size)]
+            distort_l_values = [f"{self.distort_l[i, 0]}" for i in range(self.distort_l.size)]
             distort_l_string = f"[{', '.join(distort_l_values)}]"
-            distort_r_values = [f"{self.distort_r[i]}" for i in range(self.distort_r.size)]
+            distort_r_values = [f"{self.distort_r[i, 0]}" for i in range(self.distort_r.size)]
             distort_r_string = f"[{', '.join(distort_r_values)}]"
         else:
             raise NotImplementedError
@@ -214,6 +215,8 @@ stereo0:
     resolution: [{self.width_r}, {self.height_r}]
     rostopic: /cam1/image_raw
 """
+        if args.model == 'fish':
+            txt_data += f'    fov_scale: {args.fov_scale}'
 
         if path_save is not None:
             with open(path_save, 'w', encoding='utf-8') as f:
@@ -255,7 +258,7 @@ stereo0:
         elif args.model == 'fish':
             flags = cv2.fisheye.CALIB_ZERO_DISPARITY  # 主点一致
             balance = 0
-            fov_scale = 0.8
+            fov_scale = args.fov_scale
             R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(self.intr_l, self.distort_l, self.intr_r, self.distort_r,
                                                           size, self.R, self.t, flags=flags, newImageSize=new_size,
                                                           balance=balance, fov_scale=fov_scale)
@@ -617,6 +620,7 @@ if __name__ == '__main__':
                    f'=> rect_w={args.rect_w}\n'
                    f'=> rect_h={args.rect_h}\n'
                    f'=> model={args.model}\n'
+                   f'=> fov_scale={args.fov_scale}\n'
                    ))
     # =========== 需要设置的参数 ===========
     if os.path.isdir(rf'{args.raw_dir}/../chessboard'):
