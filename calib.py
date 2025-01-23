@@ -184,11 +184,16 @@ class StereoCalib:
             distort_r_values = [f"{self.distort_r[0, i]}" for i in range(self.distort_r.size) if
                                 self.distort_r[0, i] != 0]
             distort_r_string = f"[{', '.join(distort_r_values)}]"
+            if self.distort_l.size <= 5:
+                distortion_model = 'plumb_bob'
+            else:
+                distortion_model = 'rational_polynomial'
         elif args.model == 'fish':
             distort_l_values = [f"{self.distort_l[i, 0]}" for i in range(self.distort_l.size)]
             distort_l_string = f"[{', '.join(distort_l_values)}]"
             distort_r_values = [f"{self.distort_r[i, 0]}" for i in range(self.distort_r.size)]
             distort_r_string = f"[{', '.join(distort_r_values)}]"
+            distortion_model = 'equidistant'
         else:
             raise NotImplementedError
         txt_data = f"""%YAML:1.0
@@ -197,7 +202,7 @@ stereo0:
     cam_overlaps: [1]
     camera_model: {args.model}
     distortion_coeffs: {distort_l_string}
-    distortion_model: radtan
+    distortion_model: {distortion_model}
     intrinsics: [{self.intr_l[0, 0]}, {self.intr_l[1, 1]}, {self.intr_l[0, 2]}, {self.intr_l[1, 2]}]
     resolution: [{self.width_l}, {self.height_l}]
     rostopic: /cam0/image_raw
@@ -210,7 +215,7 @@ stereo0:
     cam_overlaps: [0]
     camera_model: {args.model}
     distortion_coeffs: {distort_r_string}
-    distortion_model: radtan
+    distortion_model: {distortion_model}
     intrinsics: [{self.intr_r[0, 0]}, {self.intr_r[1, 1]}, {self.intr_r[0, 2]}, {self.intr_r[1, 2]}]
     resolution: [{self.width_r}, {self.height_r}]
     rostopic: /cam1/image_raw
