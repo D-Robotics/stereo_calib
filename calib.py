@@ -32,8 +32,8 @@ parser.add_argument("--raw_dir", type=str, default=r'./data/calib_imgs/raw', hel
 parser.add_argument("--row", type=int, default=12, help='the number of squares in a row of the chessboard')
 parser.add_argument("--col", type=int, default=9, help='the number of squares in a col chessboard')
 parser.add_argument("--block_size", type=int, default=100, help='chessboard block size')
-parser.add_argument("--left_up", type=bool, default=True,
-                    help='left up right down left_up=True; left down right up left_up=False')
+parser.add_argument("--left_down", action="store_true",
+                    help='left up right down left_down=False; left down right up left_down=True')
 parser.add_argument("--rect_w", type=int, default=-1, help='rectify image width')
 parser.add_argument("--rect_h", type=int, default=-1, help='rectify image height')
 parser.add_argument("--model", type=str, default='pinhole', help='opt [pinhole, fish]')
@@ -621,7 +621,7 @@ if __name__ == '__main__':
                    f'=> row={args.row}\n'
                    f'=> col={args.col}\n'
                    f'=> block_size={args.block_size}\n'
-                   f'=> left_up={args.left_up}\n'
+                   f'=> left_down={args.left_down}\n'
                    f'=> rect_w={args.rect_w}\n'
                    f'=> rect_h={args.rect_h}\n'
                    f'=> model={args.model}\n'
@@ -644,12 +644,12 @@ if __name__ == '__main__':
         raw_img = cv2.imread(raw_filepath, cv2.IMREAD_GRAYSCALE)
         height, width = raw_img.shape
         print(f'=> height: {height}, width: {width}')
-        if args.left_up:
-            left_img = raw_img[:height // 2, :]
-            right_img = raw_img[height // 2:, :]
-        else:
+        if args.left_down:
             right_img = raw_img[:height // 2, :]
             left_img = raw_img[height // 2:, :]
+        else:
+            left_img = raw_img[:height // 2, :]
+            right_img = raw_img[height // 2:, :]
         os.makedirs(rf'{args.raw_dir}/../left', exist_ok=True)
         os.makedirs(rf'{args.raw_dir}/../right', exist_ok=True)
         cv2.imwrite(rf'{args.raw_dir}/../left/left{raw_filename[-8:]}', left_img)
