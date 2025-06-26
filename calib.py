@@ -17,14 +17,18 @@ author:     zhikang.zeng
 time  :     2024-07-24 15:02
 """
 import argparse
+import ast
 import copy
 import glob
 import os
 import json
+import re
 import shutil
 
 import cv2
 import numpy as np
+import yaml
+
 from utils.str_utils import colormsg
 
 parser = argparse.ArgumentParser(description="Stereo Calib")
@@ -78,7 +82,9 @@ class StereoCalib:
                     'Doffs': self.doffs,
                     'Reprojection Error': self.reproj_err_stereo,
                     'Depth': 'Depth = F * B / (Disparity + Doffs)',
-                    'Model': args.model
+                    'Origin Size': f'[{self.width_l}, {self.height_l}]',
+                    'Calib Size': f'[{args.rect_w}, {args.rect_h}]',
+                    'Model': args.model,
                 },
                 'Left': {
                     'Width': self.width_l,
@@ -129,7 +135,10 @@ class StereoCalib:
                     'Doffs': self.doffs,
                     'Reprojection Error': self.reproj_err_stereo,
                     'Depth': 'Depth = F * B / (Disparity + Doffs)',
-                    'Model': args.model
+                    'Origin Size': f'[{self.width_l}, {self.height_l}]',
+                    'Calib Size': f'[{args.rect_w}, {args.rect_h}]',
+                    'Model': args.model,
+                    'Fov Scale': args.fov_scale
                 },
                 'Left': {
                     'Width': self.width_l,
@@ -269,6 +278,7 @@ stereo0:
                                                           balance=balance, fov_scale=fov_scale)
             self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[
                 3, 2]
+            print(f'-- F B cx cy doffs fov_scale: {self.Focal}, {self.B * 1}, {self.cx}, {self.cy}, {self.doffs} {fov_scale}')
 
             # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
             self.map1_l, self.map2_l = cv2.fisheye.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1,
@@ -277,6 +287,7 @@ stereo0:
                                                                            new_size, cv2.CV_32F)
         else:
             raise NotImplementedError
+
 
     def rectify_img(self, img_l, img_r):
         if self.map1_l is None:
@@ -360,6 +371,7 @@ stereo0:
             calib_flags = cv2.CALIB_FIX_K3
             # calib_flags = cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
             # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST
+            # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
             # calib_flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
             # calib_flags = cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
             # calib_flags = cv2.CALIB_RATIONAL_MODEL
@@ -376,6 +388,7 @@ stereo0:
             calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
             # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
             # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
+            # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
             # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
             # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL
             # calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K1 | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
@@ -393,7 +406,8 @@ stereo0:
             # flags |= cv2.CALIB_SAME_FOCAL_LENGTH  # 保持两相机的焦距一致，若有CALIB_FIX_PRINCIPAL_POINT，则主点也一致
             # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT  # 不改变cx、cy，可能导致内参不准，一般不启用
             # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
-            stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+            # stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+            stereo_calib_criteria = None
             # stereo_calib_flags = None
             # stereo_calib_flags = cv2.CALIB_FIX_PRINCIPAL_POINT
             # stereo_calib_flags = cv2.CALIB_FIX_INTRINSIC
@@ -403,6 +417,7 @@ stereo0:
             # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K1
             # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
             # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3
+            # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_RATIONAL_MODEL | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
             # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_ASPECT_RATIO
             # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST
             # stereo_calib_flags = cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K3
@@ -537,16 +552,141 @@ stereo0:
         self.calc_map()
         print(f'-- Load [{path_json}] Success!')
 
+    def extract_list_from_line(self, line):
+        list_str = re.search(r'\[.*\]', line).group(0)
+        return ast.literal_eval(list_str)
 
-if __name__ == '__main2__':
+    def get_intrinsic_matrix(self, params):
+        fx, fy, cx, cy = params
+        return np.array([
+            [fx, 0, cx],
+            [0, fy, cy],
+            [0, 0, 1]
+        ])
+
+    def load_yaml(self, path_yaml):
+        # 读取YAML文件
+        intrinsics_cam0 = None
+        distortion_cam0 = None
+        intrinsics_cam1 = None
+        distortion_cam1 = None
+        T_cn_cnm1 = []
+        reading_T = False
+        with open(path_yaml, 'r') as f:
+            lines = f.readlines()
+
+            for line in lines:
+                line = line.strip()
+                if line.startswith('intrinsics:'):
+                    values = self.extract_list_from_line(line)
+                    if intrinsics_cam0 is None:
+                        intrinsics_cam0 = values
+                    else:
+                        intrinsics_cam1 = values
+                elif line.startswith('distortion_coeffs:'):
+                    values = self.extract_list_from_line(line)
+                    if distortion_cam0 is None:
+                        distortion_cam0 = values
+                    else:
+                        distortion_cam1 = values
+                elif line.startswith('resolution:'):
+                    values = self.extract_list_from_line(line)
+                    self.width_l, self.height_l = values[0], values[1]
+                    self.width_r, self.height_r = values[0], values[1]
+                elif line.startswith('T_cn_cnm1:'):
+                    reading_T = True  # 启动读取矩阵的标志
+                    T_cn_cnm1 = []  # 清空之前的内容
+                elif reading_T:
+                    if line.startswith('- ['):
+                        row = self.extract_list_from_line(line)
+                        T_cn_cnm1.append(row)
+                        if len(T_cn_cnm1) == 4:
+                            reading_T = False  # 读取完毕
+        self.intr_l = self.get_intrinsic_matrix(intrinsics_cam0)
+        self.intr_r = self.get_intrinsic_matrix(intrinsics_cam1)
+        self.distort_l = np.array(distortion_cam0)
+        self.distort_r = np.array(distortion_cam1)
+        T = np.array(T_cn_cnm1)
+        # 旋转矩阵和平移向量
+        self.R = np.array(T[:3, :3])
+        self.t = np.array(T[:3, -1] * 1000)
+        self.calc_map()
+        print(f'-- Load [{path_yaml}] Success!')
+
+    def load_yaml_aceii(self, file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            # 直接使用 YAML 加载
+            data = yaml.safe_load(f)
+
+        # 把 YAML 加载出来的列表/嵌套列表转换为 numpy 数组
+        K_left = np.array(data["左立体内参矩阵"])
+        D_left = np.array(data["左立体畸变系数"][0])  # 注意：它是一个包含一个列表的列表
+        K_right = np.array(data["右立体内参矩阵"])
+        D_right = np.array(data["右立体畸变系数"][0])
+        R = np.array(data["外参旋转矩阵"])
+        T = np.array([row[0] for row in data["外参平移矩阵"]])
+
+        self.width_l, self.height_l = 2592, 1944
+        self.width_r, self.height_r = 2592, 1944
+        self.intr_l = K_left
+        self.intr_r = K_right
+        self.distort_l = D_left
+        self.distort_r = D_right
+        self.R = R
+        self.t = T
+        self.calc_map()
+        print(f'-- Load [{file_path}] Success!')
+
+    def load_yaml_cv(self, file_path):
+        fs = cv2.FileStorage(file_path, cv2.FILE_STORAGE_READ)
+
+        if not fs.isOpened():
+            raise IOError(f"Cannot open file: {file_path}")
+
+        # 读取数值（标量）
+        # stereo_rms = fs.getNode("Stereo RMS").real()
+        # epl_rms = fs.getNode("Epl RMS").real()
+        # intrinsic1_rms = fs.getNode("Intrinsic1 RMS").real()
+        # intrinsic2_rms = fs.getNode("Intrinsic2 RMS").real()
+
+        # 读取矩阵
+        M1 = fs.getNode("M1").mat()
+        D1 = fs.getNode("D1").mat()
+        M2 = fs.getNode("M2").mat()
+        D2 = fs.getNode("D2").mat()
+        R = fs.getNode("R").mat()
+        T = fs.getNode("T").mat()
+        # R1 = fs.getNode("R1").mat()
+        # R2 = fs.getNode("R2").mat()
+        # P1 = fs.getNode("P1").mat()
+        # P2 = fs.getNode("P2").mat()
+
+        fs.release()
+
+        self.width_l, self.height_l = 1280, 1088
+        self.width_r, self.height_r = 1280, 1088
+        self.intr_l = M1
+        self.intr_r = M2
+        self.distort_l = D1
+        self.distort_r = D2
+        self.R = R
+        self.t = T
+        self.calc_map()
+        print(f'-- Load [{file_path}] Success!')
+
+
+if __name__ == '__main1__':
     print('=> =================== 1 ====================')
     # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed-mini\calib.json'
     # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\json\m.json'
     # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\calib.json'
-    calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1018-lh-1\stereo_4_1_lh_1018.json'  # rectified fx: 468.224548, fy: 468.224548, cx: 648.605103, cy: 298.273071, base_line: :0.069716
+    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1018-lh-1\stereo_4_1_lh_1018.json'  # rectified fx: 468.224548, fy: 468.224548, cx: 648.605103, cy: 298.273071, base_line: :0.069716
+    # calib_file_path = r'D:\VirtualBoxShare\0_ros2bag\data0\stereo_livox_imu_bag_20250529_1_ros1-camchain-imucam.yaml'
+    # calib_file_path = r'C:\Users\zhikang.zeng\Pictures\Saved Pictures\test\UCO00085_1T02D256B00010.yml'
+    calib_file_path = r'D:\VirtualBoxShare\4_stereo_imu_lidar_calib_20250624\2_stereo_calib\stereo_fish_gz_20250624.yaml'
     print(f'=>=== Load calib json: {calib_file_path}')
     sc = StereoCalib()
-    sc.load_json_lh(calib_file_path)
+    sc.load_yaml(calib_file_path)
     # sc.load_json(calib_file_path)
     print('-- left camera matrix:\n', sc.intr_l)
     print('-- left distortion coeffs:', sc.distort_l)
@@ -559,25 +699,25 @@ if __name__ == '__main2__':
     # sc.save_json(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\depth-analyse\230ai-stereo-imgs\stereo_8_custom.json')
 
     # print('=> =================== 2 ====================')
-    raw_dir = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\depth-analyse\230ai-stereo-imgs\raw'
-    # for raw_filename in os.listdir(raw_dir):
-    #     print('=> =================================')
-    #     if 'depth' in raw_filename: continue
-    #     if not raw_filename.endswith(('.png', '.jpg')): continue
-    #     print(f'=> {raw_filename}')
-    #     raw_filepath = os.path.join(raw_dir, raw_filename)
-    #     raw_img = cv2.imread(raw_filepath, cv2.IMREAD_COLOR)
-    #     height, width, _ = raw_img.shape
-    #     print(f'=> height: {height}, width: {width}')
-    #     # left_img = raw_img[height // 2:, :width // 2]
-    #     # right_img = raw_img[height // 2:, width // 2:]
-    #     left_img = raw_img[:height // 2, :]
-    #     right_img = raw_img[height // 2:, :]
-    #     os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
-    #     os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
-    #     cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-    #     cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
-    #     print('=> =================================')
+    raw_dir = r'D:\VirtualBoxShare\4_stereo_imu_lidar_calib_20250624\3_lidar_calib\stereo_livox_lidar_imu_bag_20250624_split\images\raw'
+    for raw_filename in os.listdir(raw_dir):
+        print('=> =================================')
+        if 'depth' in raw_filename: continue
+        if not raw_filename.endswith(('.png', '.jpg')): continue
+        print(f'=> {raw_filename}')
+        raw_filepath = os.path.join(raw_dir, raw_filename)
+        raw_img = cv2.imread(raw_filepath, cv2.IMREAD_COLOR)
+        height, width, _ = raw_img.shape
+        print(f'=> height: {height}, width: {width}')
+        # left_img = raw_img[height // 2:, :width // 2]
+        # right_img = raw_img[height // 2:, width // 2:]
+        left_img = raw_img[:height // 2, :]
+        right_img = raw_img[height // 2:, :]
+        os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
+        os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
+        cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
+        cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
+        print('=> =================================')
 
     # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
@@ -586,9 +726,9 @@ if __name__ == '__main2__':
     for filepath, dirnames, filenames in os.walk(rf'{raw_dir}/..'):
         for filename in filenames:
             tmp_path = (os.path.join(filepath, filename))
-            if 'left' in tmp_path and 'rectify' not in tmp_path:
+            if 'left' in tmp_path and 'rectify' not in tmp_path and tmp_path.endswith('.png'):
                 left_img_filepaths.append(tmp_path)
-            if 'right' in tmp_path and 'rectify' not in tmp_path:
+            if 'right' in tmp_path and 'rectify' not in tmp_path and tmp_path.endswith('.png'):
                 right_img_filepaths.append(tmp_path)
 
     assert len(left_img_filepaths) == len(right_img_filepaths)
@@ -634,8 +774,8 @@ if __name__ == '__main__':
         shutil.rmtree(rf'{args.raw_dir}/../left')
     if os.path.isdir(rf'{args.raw_dir}/../right'):
         shutil.rmtree(rf'{args.raw_dir}/../right')
-    if os.path.isdir(rf'{args.raw_dir}/../rectify'):
-        shutil.rmtree(rf'{args.raw_dir}/../rectify')
+    if os.path.isdir(rf'{args.raw_dir}/../rectify_{args.model}'):
+        shutil.rmtree(rf'{args.raw_dir}/../rectify_{args.model}')
     os.makedirs(rf'{args.raw_dir}/../chessboard', exist_ok=True)
     for raw_filename in os.listdir(args.raw_dir):
         print('=> -------------------------------')
@@ -687,6 +827,7 @@ if __name__ == '__main__':
     left_img_filepaths = []
     right_img_filepaths = []
     for filepath, dirnames, filenames in os.walk(rf'{args.raw_dir}/..'):
+        # for filepath, dirnames, filenames in os.walk(rf'D:\3_HoBot\3_RDK_X3_X5\19_GZ\19700101_003613'):
         for filename in filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
@@ -702,7 +843,7 @@ if __name__ == '__main__':
         print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
         img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
 
-        result_dir = os.path.join(filedir, '..', 'rectify')
+        result_dir = os.path.join(filedir, '..', f'rectify_{args.model}')
         os.makedirs(result_dir, exist_ok=True)
 
         # cv2.imwrite(os.path.join(result_dir, f'left{i + 1:>06}.png'), img_l_rectified)
