@@ -1,61 +1,67 @@
-# 双目标定（OpenCV python实现）
+# Stereo Calibration
 
-## 1、文件说明
+[Chinese](./README_CN.md) | English
 
-- [calib.py](calib.py)：标定、极线矫正代码实现
-- [sgbm.py](sgbm.py)：sgmb算法实现
-- [data](data)：数据目录
+## 1. Document Description
 
-## 2、先安装依赖包
+- [calib.py](calib.py): Implementation of calibration and epipolar rectification code
+- [sgbm.py](sgbm.py): Implementation of the sgmb algorithm
+- [data](data): Data Directory
+  
+## 2. Install the dependency packages first
 
 ```shell
-# opencv版本需要大于4.5
+# opencv version MUST >= 4.5
 pip install opencv-python
 pip install open3d
 ```
 
-## 3、再运行代码
+## 3. Run the code again
 
-1. 需要采集20张以上的棋盘格图像，将采集的数据放在`./data/calib_imgs/raw`目录下，或者自定义目录也可以，图像采集请参考[hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
-
-   - 注意**采集图像时需要保证相机和棋盘格是静止状态**，棋盘格应主要位于图像的中心区域，也可以适当拍摄一些棋盘格位于图像边缘的图像，否则容易标定失败
-   - 采集的距离视棋盘格大小而定，例子中的棋盘格标定板大小是120cm*90cm，采集的距离大概是50cm~200cm，**棋盘格应占据图像30%~80%的面积**，以确保角点能够清晰地被检测到，如图所示
-     ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_001.png)
-     ![combine_020.png](data%2Fcalib_imgs%2Fraw%2Fcombine_020.png)
-   - 采集的角度大概在-30°~30°即可，可以调整棋盘格角度，也可以调整相机角度，如图所示
-     ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_012.png)
-     ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_009.png)
-
-     ![calib_raw.png](doc%2Fcalib_raw.png)
-
-2. 然后运行[calib.py](calib.py)进行标定，需要将`raw_dir`设置为棋盘格图像目录，`row`、`col`、`block_size`按照棋盘格的尺寸进行设置，具体可查看下图，程序运行指令如下
-
+1. More than 20 checkerboard images need to be collected, and the collected data should be placed in `./data/calib_imgs/raw`  directory, or a custom directory can also be used.
+  
+  - Note that **when capturing images, ensure that the camera and the checkerboard are in a stationary state**. The checkerboard should be mainly located in the central area of the image, and it is also appropriate to capture some images with the checkerboard located at the edge of the image; otherwise, calibration may easily fail. 
+  - The distance for data collection depends on the size of the checkerboard. In the example, the size of the checkerboard calibration target is 120cm * 90cm, and the collection distance is approximately 50cm to 200cm. **The checkerboard should occupy 30% to 80% of the image area** to ensure that the corner points can be clearly detected, as shown in the figure. 
+  ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_001.png)
+  ![combine_020.png](data%2Fcalib_imgs%2Fraw%2Fcombine_020.png)
+  - The collection angle can be approximately between -30° and 30°. You can adjust the angle of the checkerboard or the camera angle, as shown in the figure. 
+  ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_012.png)
+  ![combine_001.png](data%2Fcalib_imgs%2Fraw%2Fcombine_009.png)
+  ![calib_raw.png](doc%2Fcalib_raw.png)
+ 
+2. Then run [calib.py](calib.py) for calibration, where `raw_dir` needs to be set to the directory of the checkerboard images, 
+`row`, `col`, `block_size` should be set according to the size of the checkerboard. For details, please refer to the figure below. The program execution command is as follows 
+  
 ```shell
 python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=100
 ```
 
 ![chessboard.png](doc%2Fchessboard.png)
 
-3. 运行后将产生如下结果
-
+3. After running, the following results will be produced 
+  
 ![calib_result.png](doc%2Fcalib_result.png)
 
-4. 需要确认标定结果是否正确，查看`calib.json`文件中重投影误差是否小于0.5，并且查看`rectify`文件夹的图像是否矫正成功
-
+4. Need to confirm whether the calibration results are correct, check if the reprojection error in the `calib.json` file is less than 0.5, 
+and check if the images in the `rectify` folder have been successfully rectified
+  
 ![calib_flag.png](doc%2Fcalib_flag.png)
 
-5. 标定失败案例
-
-- 重投影误差大于0.5
-
+5. Calibration failure cases
+  
+- Reprojection error is greater than 0.5 
+  
 ![calib_error1.png](doc%2Fcalib_error1.png)
 
-- 重投影误差小于0.5，但标定参数存在异常，`rectify`文件夹的图像完全错误
-
+- The reprojection error is less than 0.5, but the calibration parameters are abnormal, `rectify`
+ The images in the folder are completely incorrect 
+  
 ![calib_error1.png](doc%2Fcalib_error2.png)
 
-- 重投影误差小于0.5，`rectify`文件夹的图像存在异常，这种情况标定参数不是完全不能用，只是会影响深度精度，例如
-
+- The reprojection error is less than 0.5, `rectify`
+  There are anomalies in the images in the folder. In this case,
+   the calibration parameters are not completely unusable, but they will affect the depth accuracy. For example 
+  
 ![calib_error2.png](doc%2Fcalib_error3.png)
 
 ![calib_error2.png](doc%2Fcalib_error4.png)
@@ -66,20 +72,18 @@ python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=10
 
 ![calib_error2.png](doc%2Fcalib_error7.png)
 
-**出现以上情况请重新采集图像再进行标定**
+If the above situation occurs, please recollect the image and then perform calibration 
 
-## 4、最后测试双目功能包
 
-[hobot_stereonet_utils](https://github.com/D-Robotics/hobot_stereonet_utils)
+## 4. Calibration Configuration
 
-## 5、标定配置
+In the [calib.py](calib.py) code, there are two flags that can be set, 
+one is `calib_flags` for mono calibration, and the other is `stereo_calib_flags` for stereo calibration
 
-在[calib.py](calib.py)代码中，有两个标志位可以设置，一个是单目标定的`calib_flags`，另一个是双目标定的`stereo_calib_flags`
+Currently set `calib_flags=None`, `stereo_calib_flags=cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL`, 
+and the reprojection error of the calibration is small
 
-目前设置`calib_flags=None`，`stereo_calib_flags=cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL`，标定的重投影误差较小
-
-输出日志如下：
-
+Output log is as follows:
 ```shell
 -- ====================== Stereo Calib Start ======================
 -- ./data/calib_imgs/raw/../left\left_001.png ./data/calib_imgs/raw/../right\right_001.png
@@ -102,7 +106,7 @@ python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=10
 -- ./data/calib_imgs/raw/../left\left_018.png ./data/calib_imgs/raw/../right\right_018.png
 -- ./data/calib_imgs/raw/../left\left_019.png ./data/calib_imgs/raw/../right\right_019.png
 -- ./data/calib_imgs/raw/../left\left_020.png ./data/calib_imgs/raw/../right\right_020.png
--- 左图重投影误差: 4.671930829291836, 右图重投影误差: 4.859185223701936
+-- left image reprojection error: 4.671930829291836, right image reprojection error: 4.859185223701936
 -- left camera matrix:
  [[522.99618673   0.         640.69232983]
  [  0.         465.18420372 296.49439402]
@@ -127,23 +131,27 @@ python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=10
  [[-6.98292351e+01]
  [ 8.34389817e-02]
  [-2.61871346e-02]]
--- 双目标定重投影误差: 0.2238986518250022
+-- stereo calibration reprojection error: 0.2238986518250022
 -- ======================= Stereo Calib End =======================
 -- F B cx cy doffs: 465.2104178592821, 69.82928990313776, 870.4762115478516, 221.603515625, -0.0
 Save Json: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\calib.json
 Save yaml: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\stereo_8.yaml
 =================================================================================
-=> 重投影误差小于0.5，标定成功，请确认rectify目录的图像是否矫正成功
+=> Reprojection error is less than 0.5. Calibration successful. 
+Please verify that the images in the 'rectify' directory have been correctly rectified.
 =================================================================================
 ```
 
-## 6、极线矫正
+## 5. Epipolar rectification
 
-极线矫正代码也在[calib.py](calib.py)中，也有一个标志位可以设置：`flags = cv2.CALIB_ZERO_DISPARITY`时左右图主点位置一致，`flags = 0`时左右图主点位置不一致，保留更大的fov，此时doffs不等于0
+The epipolar rectification code is also in [calib.py](calib.py), and there is also a flag that can be set:  When 
+`flags = cv2.CALIB_ZERO_DISPARITY`,  the principal point positions of the left and right images are the same, 
+When `flags = 0`,  the principal point positions of the left and right images are different, 
+retaining a larger field of view (FOV), and at this time doffs is not equal to 0 
 
-深度计算的公式是：Depth = F * B / (Disparity + Doffs)
+The formula for depth calculation is: Depth = F * B / (Disparity + Doffs) 
 
-## 7、SGMB计算深度
+## 6. SGMB Calculation Depth
 
-输入矫正后的图像和矫正后的内参，可通过[sgbm.py](sgbm.py)计算视差、深度、点云
-
+By inputting the corrected image and corrected intrinsic parameters, disparity, depth, 
+and point cloud can be calculated via [sgbm.py](sgbm.py) 
