@@ -49,7 +49,7 @@ python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=10
   | calib.json  | calibration result in json format |
   | stereo_xx.yaml  | calibration result in yaml format |
   
-![calib_result.png](doc%2Fcalib_result.png)
+![calib_result.png](doc%2Fcalib_result_eng.png)
 
 4. Need to confirm whether the calibration results are correct, check if the reprojection error in the `calib.json` file is less than 0.5, 
 and check if the images in the `rectify` folder have been successfully rectified
