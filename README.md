@@ -40,14 +40,14 @@ python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=10
 
 3. After running, the following results will be produced 
   
-  |  item  |       |
+  |  item  |   description    |
   |  ----  | ----  |
   | chessboard  | chessboard corner render result |
   | left  | original left image |
   | right  | original right image |
   | rectify  | rectified image |
-  | calib.json  | calibration result in json format |
-  | stereo_xx.yaml  | calibration result in yaml format |
+  | calib_xxxx.json  | calibration result in json format |
+  | stereo_xxxx.yaml  | calibration result in yaml format |
   
 ![calib_result.png](doc%2Fcalib_result_eng.png)
 
