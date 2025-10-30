@@ -604,7 +604,6 @@ stereo0:
         self.distort_l = np.array(distortion_cam0)
         self.distort_r = np.array(distortion_cam1)
         T = np.array(T_cn_cnm1)
-        # 旋转矩阵和平移向量
         self.R = np.array(T[:3, :3])
         self.t = np.array(T[:3, -1] * 1000)
         self.calc_map()
@@ -645,78 +644,6 @@ stereo0:
         self.calc_map()
         print(f'-- Load [{file_path}] Success!')
 
-
-if __name__ == '__main1__':
-    print('=> =================== 1 ====================')
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed-mini\calib.json'
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\json\m.json'
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\calib.json'
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1018-lh-1\stereo_4_1_lh_1018.json'  # rectified fx: 468.224548, fy: 468.224548, cx: 648.605103, cy: 298.273071, base_line: :0.069716
-    # calib_file_path = r'D:\VirtualBoxShare\0_ros2bag\data0\stereo_livox_imu_bag_20250529_1_ros1-camchain-imucam.yaml'
-    # calib_file_path = r'C:\Users\zhikang.zeng\Pictures\Saved Pictures\test\UCO00085_1T02D256B00010.yml'
-    calib_file_path = r'D:\VirtualBoxShare\4_stereo_imu_lidar_calib_20250624\2_stereo_calib\stereo_fish_gz_20250624.yaml'
-    print(f'=>=== Load calib json: {calib_file_path}')
-    sc = StereoCalib()
-    sc.load_yaml(calib_file_path)
-    # sc.load_json(calib_file_path)
-    print('-- left camera matrix:\n', sc.intr_l)
-    print('-- left distortion coeffs:', sc.distort_l)
-    print('-- right camera matrix:\n', sc.intr_r)
-    print('-- right distortion coeffs:', sc.distort_r)
-    print('-- R:\n', sc.R)
-    print('-- T:\n', sc.t)
-    sc.prt_stereo_param()
-    # sc.save_yaml(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\stereo_8_lh.yaml')
-    # sc.save_json(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\depth-analyse\230ai-stereo-imgs\stereo_8_custom.json')
-
-    # print('=> =================== 2 ====================')
-    raw_dir = r'D:\VirtualBoxShare\4_stereo_imu_lidar_calib_20250624\3_lidar_calib\stereo_livox_lidar_imu_bag_20250624_split\images\raw'
-    for raw_filename in os.listdir(raw_dir):
-        print('=> =================================')
-        if 'depth' in raw_filename: continue
-        if not raw_filename.endswith(('.png', '.jpg')): continue
-        print(f'=> {raw_filename}')
-        raw_filepath = os.path.join(raw_dir, raw_filename)
-        raw_img = cv2.imread(raw_filepath, cv2.IMREAD_COLOR)
-        height, width, _ = raw_img.shape
-        print(f'=> height: {height}, width: {width}')
-        # left_img = raw_img[height // 2:, :width // 2]
-        # right_img = raw_img[height // 2:, width // 2:]
-        left_img = raw_img[:height // 2, :]
-        right_img = raw_img[height // 2:, :]
-        os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
-        os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
-        cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-        cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
-        print('=> =================================')
-
-    # Performing epipolar rectification. Ensure the correct image directory is read.
-    print('=> =================== 3 ====================')
-    left_img_filepaths = []
-    right_img_filepaths = []
-    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}/..'):
-        for filename in filenames:
-            tmp_path = (os.path.join(filepath, filename))
-            if 'left' in tmp_path and 'rectify' not in tmp_path and tmp_path.endswith('.png'):
-                left_img_filepaths.append(tmp_path)
-            if 'right' in tmp_path and 'rectify' not in tmp_path and tmp_path.endswith('.png'):
-                right_img_filepaths.append(tmp_path)
-
-    assert len(left_img_filepaths) == len(right_img_filepaths)
-    for i in range(len(left_img_filepaths)):
-        filedir, left_filename = os.path.split(left_img_filepaths[i])
-        _, right_filename = os.path.split(right_img_filepaths[i])
-
-        print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
-        img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
-
-        result_dir = os.path.join(filedir, '..', 'rectify_kalibr')
-        os.makedirs(result_dir, exist_ok=True)
-
-        # cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
-        # cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
-        cv2.imwrite(os.path.join(result_dir, f'left{i + 1:>06}.png'), img_l_rectified)
-        cv2.imwrite(os.path.join(result_dir, f'right{i + 1:>06}.png'), img_r_rectified)
 
 if __name__ == '__main__':
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed\raw --row=12 --col=9 --block_size=20

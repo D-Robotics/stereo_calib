@@ -30,7 +30,10 @@ pip install open3d
   ![calib_raw.png](doc%2Fcalib_raw.png)
  
 2. Then run [calib.py](calib.py) for calibration, where `raw_dir` needs to be set to the directory of the checkerboard images, 
-`row`, `col`, `block_size` should be set according to the size of the checkerboard. For details, please refer to the figure below. The program execution command is as follows 
+`row`, `col`, `block_size` should be set according to the size of the checkerboard. For details, please refer to the figure below. 
+`model` can be set to either `fish` or `pinhole`, depending on the distortion level of your lens, if distortion is kind of heavy,
+better to use `fish`. But it is recommended to try both fish and pinhole and choose the one that gives the best result.
+The program execution command is as follows 
   
 ```shell
 python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=100
