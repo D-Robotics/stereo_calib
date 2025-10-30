@@ -36,10 +36,18 @@ better to use `fish`. But it is recommended to try both fish and pinhole and cho
 The program execution command is as follows 
   
 ```shell
-python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=100
+#  use pinhole
+python calib.py --raw_dir=./data/calib_imgs/raw --row=12 --col=9 --block_size=100 --model=pinhole
+```
+![chessboard.png](doc%2Fchessboard.png)
+
+
+```shell
+#  use fish
+python calib.py --raw_dir=./fish_data/raw --row=21 --col=12 --block_size=60 --model=fish
 ```
 
-![chessboard.png](doc%2Fchessboard.png)
+![chessboard.png](doc%2Fnew_board.png)
 
 3. After running, the following results will be produced 
   
@@ -91,65 +99,74 @@ If the above situation occurs, please recollect the image and then perform calib
 In the [calib.py](calib.py) code, there are two flags that can be set, 
 one is `calib_flags` for mono calibration, and the other is `stereo_calib_flags` for stereo calibration
 
-Currently set `calib_flags=None`, `stereo_calib_flags=cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL`, 
-and the reprojection error of the calibration is small
+Currently set `calib_flags=None`, `stereo_calib_flags=cv2.CALIB_USE_INTRINSIC_GUESS | cv2.CALIB_RATIONAL_MODEL` in `pinhole`, 
+and set `stereo_calib_flags=cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC | cv2.fisheye.CALIB_CHECK_COND | cv2.fisheye.CALIB_FIX_SKEW` in `fish`
+the reprojection error of the calibration is small.
 
 Output log is as follows:
 ```shell
 -- ====================== Stereo Calib Start ======================
--- ./data/calib_imgs/raw/../left\left_001.png ./data/calib_imgs/raw/../right\right_001.png
--- ./data/calib_imgs/raw/../left\left_002.png ./data/calib_imgs/raw/../right\right_002.png
--- ./data/calib_imgs/raw/../left\left_003.png ./data/calib_imgs/raw/../right\right_003.png
--- ./data/calib_imgs/raw/../left\left_004.png ./data/calib_imgs/raw/../right\right_004.png
--- ./data/calib_imgs/raw/../left\left_005.png ./data/calib_imgs/raw/../right\right_005.png
--- ./data/calib_imgs/raw/../left\left_006.png ./data/calib_imgs/raw/../right\right_006.png
--- ./data/calib_imgs/raw/../left\left_007.png ./data/calib_imgs/raw/../right\right_007.png
--- ./data/calib_imgs/raw/../left\left_008.png ./data/calib_imgs/raw/../right\right_008.png
--- ./data/calib_imgs/raw/../left\left_009.png ./data/calib_imgs/raw/../right\right_009.png
--- ./data/calib_imgs/raw/../left\left_010.png ./data/calib_imgs/raw/../right\right_010.png
--- ./data/calib_imgs/raw/../left\left_011.png ./data/calib_imgs/raw/../right\right_011.png
--- ./data/calib_imgs/raw/../left\left_012.png ./data/calib_imgs/raw/../right\right_012.png
--- ./data/calib_imgs/raw/../left\left_013.png ./data/calib_imgs/raw/../right\right_013.png
--- ./data/calib_imgs/raw/../left\left_014.png ./data/calib_imgs/raw/../right\right_014.png
--- ./data/calib_imgs/raw/../left\left_015.png ./data/calib_imgs/raw/../right\right_015.png
--- ./data/calib_imgs/raw/../left\left_016.png ./data/calib_imgs/raw/../right\right_016.png
--- ./data/calib_imgs/raw/../left\left_017.png ./data/calib_imgs/raw/../right\right_017.png
--- ./data/calib_imgs/raw/../left\left_018.png ./data/calib_imgs/raw/../right\right_018.png
--- ./data/calib_imgs/raw/../left\left_019.png ./data/calib_imgs/raw/../right\right_019.png
--- ./data/calib_imgs/raw/../left\left_020.png ./data/calib_imgs/raw/../right\right_020.png
--- left image reprojection error: 4.671930829291836, right image reprojection error: 4.859185223701936
+...
+-- Left image reprojection error: 0.12949030109517565, Right image reprojection error: 0.12460417066817898
 -- left camera matrix:
- [[522.99618673   0.         640.69232983]
- [  0.         465.18420372 296.49439402]
+ [[658.1741247    0.         646.05353639]
+ [  0.         658.30601712 548.53666377]
  [  0.           0.           1.        ]]
--- left distortion coeffs: [[ 6.66822613e-01  8.77969376e-02  1.18545533e-04 -2.71921191e-05
-   1.38004091e-03  1.03465050e+00  2.40773908e-01  1.19398848e-02
-   0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
-   0.00000000e+00  0.00000000e+00]]
+-- left distortion coeffs: [[-0.0199456 ]
+ [-0.00640722]
+ [ 0.01037764]
+ [-0.00745861]]
 -- right camera matrix:
- [[522.8518854    0.         691.05567142]
- [  0.         465.236632   301.86575619]
+ [[659.09415164   0.         641.17852313]
+ [  0.         659.12030536 546.31961247]
  [  0.           0.           1.        ]]
--- right distortion coeffs: [[1.19759498e+00 2.85421520e-01 2.77899058e-05 3.37306409e-04
-  6.13442581e-03 1.56688095e+00 6.27666431e-01 4.62568869e-02
-  0.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00
-  0.00000000e+00 0.00000000e+00]]
+-- right distortion coeffs: [[-0.0193645 ]
+ [-0.00300522]
+ [ 0.00317018]
+ [-0.00358357]]
 -- R:
- [[ 9.99996943e-01  2.83193997e-04 -2.45645372e-03]
- [-2.80755719e-04  9.99999468e-01  9.92888916e-04]
- [ 2.45673360e-03 -9.92196217e-04  9.99996490e-01]]
+ [[ 0.99999446  0.00302244  0.0013916 ]
+ [-0.00301419  0.99997809 -0.00589311]
+ [-0.00140938  0.00588888  0.99998167]]
 -- T:
- [[-6.98292351e+01]
- [ 8.34389817e-02]
- [-2.61871346e-02]]
--- stereo calibration reprojection error: 0.2238986518250022
+ [[-7.96251331e+01]
+ [ 1.82031895e-01]
+ [ 7.47745585e-02]]
+-- Stereo reprojection error: 0.12937212606379386
+-- F B cx cy doffs fov_scale: 612.5314060500974, 79.6253762710031, 648.7790623361407, 550.2822714476908, -0.0 0.8
 -- ======================= Stereo Calib End =======================
--- F B cx cy doffs: 465.2104178592821, 69.82928990313776, 870.4762115478516, 221.603515625, -0.0
-Save Json: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\calib.json
-Save yaml: D:\1_Code\3_Python\stereo_calib\data\calib_imgs\stereo_8.yaml
+-- F B cx cy doffs: 612.5314060500974, 79.6253762710031, 648.7790623361407, 550.2822714476908, -0.0
+Save Json: /home/zhy/c-lab/stereo/stereo_calib/fish_data/calib_fish.json
+Save yaml: /home/zhy/c-lab/stereo/stereo_calib/fish_data/stereo_fish.yaml
+=> =================== 3 ====================
+=> =================== 4 ====================
+=> Rectify img: ./fish_data/raw/../left/left_002.png ./fish_data/raw/../right/right_002.png
+=> Rectify img: ./fish_data/raw/../left/left_003.png ./fish_data/raw/../right/right_003.png
+=> Rectify img: ./fish_data/raw/../left/left_004.png ./fish_data/raw/../right/right_004.png
+=> Rectify img: ./fish_data/raw/../left/left_005.png ./fish_data/raw/../right/right_005.png
+=> Rectify img: ./fish_data/raw/../left/left_006.png ./fish_data/raw/../right/right_006.png
+=> Rectify img: ./fish_data/raw/../left/left_007.png ./fish_data/raw/../right/right_007.png
+=> Rectify img: ./fish_data/raw/../left/left_008.png ./fish_data/raw/../right/right_008.png
+=> Rectify img: ./fish_data/raw/../left/left_009.png ./fish_data/raw/../right/right_009.png
+=> Rectify img: ./fish_data/raw/../left/left_010.png ./fish_data/raw/../right/right_010.png
+=> Rectify img: ./fish_data/raw/../left/left_011.png ./fish_data/raw/../right/right_011.png
+=> Rectify img: ./fish_data/raw/../left/left_012.png ./fish_data/raw/../right/right_012.png
+=> Rectify img: ./fish_data/raw/../left/left_013.png ./fish_data/raw/../right/right_013.png
+=> Rectify img: ./fish_data/raw/../left/left_014.png ./fish_data/raw/../right/right_014.png
+=> Rectify img: ./fish_data/raw/../left/left_015.png ./fish_data/raw/../right/right_015.png
+=> Rectify img: ./fish_data/raw/../left/left_016.png ./fish_data/raw/../right/right_016.png
+=> Rectify img: ./fish_data/raw/../left/left_017.png ./fish_data/raw/../right/right_017.png
+=> Rectify img: ./fish_data/raw/../left/left_018.png ./fish_data/raw/../right/right_018.png
+=> Rectify img: ./fish_data/raw/../left/left_019.png ./fish_data/raw/../right/right_019.png
+=> Rectify img: ./fish_data/raw/../left/left_020.png ./fish_data/raw/../right/right_020.png
+=> Rectify img: ./fish_data/raw/../left/left_021.png ./fish_data/raw/../right/right_021.png
+=> Rectify img: ./fish_data/raw/../left/left_022.png ./fish_data/raw/../right/right_022.png
+=> Rectify img: ./fish_data/raw/../left/left_023.png ./fish_data/raw/../right/right_023.png
+=> Rectify img: ./fish_data/raw/../left/left_024.png ./fish_data/raw/../right/right_024.png
+=> Rectify img: ./fish_data/raw/../left/left_025.png ./fish_data/raw/../right/right_025.png
 =================================================================================
-=> Reprojection error is less than 0.5. Calibration successful. 
-Please verify that the images in the 'rectify' directory have been correctly rectified.
+=> The reprojection error is less than 0.5, and the calibration is successful.
+Please confirm whether the image in the `rectify` directory has been corrected successfully.
 =================================================================================
 ```
 

@@ -721,7 +721,8 @@ if __name__ == '__main__':
     right_img_filepaths = []
     for filepath, dirnames, filenames in os.walk(rf'{args.raw_dir}/..'):
         # for filepath, dirnames, filenames in os.walk(rf'D:\3_HoBot\3_RDK_X3_X5\19_GZ\19700101_003613'):
-        for filename in filenames:
+        sorted_filenames = sorted(filenames)
+        for filename in sorted_filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
                 left_img_filepaths.append(tmp_path)
