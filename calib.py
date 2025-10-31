@@ -55,10 +55,10 @@ class StereoCalib:
         self.E = self.F = None
         self.reproj_err_stereo = None
 
-        # 校正后的参数，可用于视差转深度
+        # calibrated intrinsics, which can be uesd to converting disparity to depth
         self.Focal = self.B = self.cx = self.cy = self.doffs = None
 
-        # 做remap的映射矩阵
+        # mapping matrix
         self.map1_l = self.map2_l = None
         self.map1_r = self.map2_r = None
 
@@ -244,15 +244,14 @@ stereo0:
         if self.intr_l is None:
             raise ValueError('Internal and external parameters are not calculated!')
 
-        # 计算相机的修正变换
         size = (self.width_l, self.height_l)
         if args.rect_w != -1 and args.rect_h != -1:
             new_size = (args.rect_w, args.rect_h)
         else:
             new_size = size
         if args.model == 'pinhole':
-            flags = cv2.CALIB_ZERO_DISPARITY  # 主点一致
-            # flags = 0  # 主点不一致
+            flags = cv2.CALIB_ZERO_DISPARITY  # Principal Point Consistency
+            # flags = 0  # Principal Point not Consistency
             # alpha = -1
             alpha = 0
             # alpha = 0.5
@@ -264,13 +263,12 @@ stereo0:
             self.Focal, self.B, self.cx, self.cy, self.doffs = Q[2, 3], 1 / Q[3, 2], -Q[0, 3], -Q[1, 3], Q[3, 3] / Q[
                 3, 2]
 
-            # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
             self.map1_l, self.map2_l = cv2.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1, new_size,
                                                                    cv2.CV_32FC2)
             self.map1_r, self.map2_r = cv2.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2, new_size,
                                                                    cv2.CV_32FC2)
         elif args.model == 'fish':
-            flags = cv2.fisheye.CALIB_ZERO_DISPARITY  # 主点一致
+            flags = cv2.fisheye.CALIB_ZERO_DISPARITY
             balance = 0
             fov_scale = args.fov_scale
             R1, R2, P1, P2, Q = cv2.fisheye.stereoRectify(self.intr_l, self.distort_l, self.intr_r, self.distort_r,
@@ -280,7 +278,6 @@ stereo0:
                 3, 2]
             print(f'-- F B cx cy doffs fov_scale: {self.Focal}, {self.B * 1}, {self.cx}, {self.cy}, {self.doffs} {fov_scale}')
 
-            # 计算映射矩阵LUT，CV_32FC2时map2为空，CV_16SC2时map2为提升定点精度的查找表
             self.map1_l, self.map2_l = cv2.fisheye.initUndistortRectifyMap(self.intr_l, self.distort_l, R1, P1,
                                                                            new_size, cv2.CV_32F)
             self.map1_r, self.map2_r = cv2.fisheye.initUndistortRectifyMap(self.intr_r, self.distort_r, R2, P2,
@@ -307,7 +304,7 @@ stereo0:
         return img_l_rectified, img_r_rectified
 
     def calib(self, dir_l, dir_r, row=12, col=9, block_size=20):
-        """计算内外参及畸变"""
+        """Compute the intrinsic parameters, extrinsic parameters, and distortion coefficients"""
         print('-- ====================== Stereo Calib Start ======================')
         if self.path_save is None:
             self.path_save = dir_l.replace('left', 'stereo-calib-res.json')
@@ -317,26 +314,30 @@ stereo0:
 
         points_per_row, points_per_col = row - 1, col - 1
 
-        # 此处假设棋盘格所在的平面为世界坐标系中Z=0的平面
-        objpoints = np.zeros((points_per_row * points_per_col, 3), np.float32)  # 棋盘格角点的世界坐标，单位米
+        # The checkerboard plane is defined as the Z=0 plane in the world coordinate system.
+        objpoints = np.zeros((points_per_row * points_per_col, 3), np.float32)  # World coordinates of the checkerboard corners (in meters).
         objpoints[:, :2] = np.mgrid[0:points_per_row, 0:points_per_col].T.reshape(-1, 2) * block_size
 
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # 终止条件
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-        pts_world = []  # 角点在世界坐标系下的坐标
-        pts_img_l = []  # 左图角点在图像坐标系下的坐标
-        pts_img_r = []  # 右图角点在图像坐标系下的坐标
+        # corners in world coordinates
+        pts_world = []
+
+        #  corners in image coordinates of the left and right image
+        pts_img_l = []
+        pts_img_r = []
 
         for i in range(len(images_l)):
             print(f'-- {images_l[i]} {images_r[i]}')
             img_l = cv2.imread(images_l[i], cv2.IMREAD_GRAYSCALE)  # show(img_l)
             img_r = cv2.imread(images_r[i], cv2.IMREAD_GRAYSCALE)  # show(img_r)
 
-            # 提取棋盘格角点
+            # extract corners
             ret_l, corners_l = cv2.findChessboardCorners(img_l, (points_per_row, points_per_col), None)
             ret_r, corners_r = cv2.findChessboardCorners(img_r, (points_per_row, points_per_col), None)
 
-            # 亚像素精确化，对粗提取的角点进行精确化，并添加每幅图的对应3D-2D坐标
+            # Refine the coarsely extracted corners to achieve sub-pixel accuracy and
+            # Establish the corresponding 3D-2D coordinate pairs for each image
             if ret_l and ret_r:
                 pts_world.append(objpoints)
                 cv2.cornerSubPix(img_l, corners_l, (11, 11), (-1, -1), criteria)
@@ -344,7 +345,7 @@ stereo0:
                 pts_img_l.append(corners_l)
                 pts_img_r.append(corners_r)
 
-                # 可视化角点
+                # visualization corners
                 img_l_c = cv2.cvtColor(img_l, cv2.COLOR_GRAY2BGR)
                 img_r_c = cv2.cvtColor(img_r, cv2.COLOR_GRAY2BGR)
                 cv2.drawChessboardCorners(img_l_c, (points_per_row, points_per_col), corners_l, ret_l)
@@ -354,7 +355,7 @@ stereo0:
                 cv2.namedWindow('show corners', 0)
                 cv2.resizeWindow('show corners', 640 * 2, 400)
                 cv2.imshow('show corners', img_corners_show)
-                cv2.waitKey(100)  # 显示100ms
+                cv2.waitKey(100)
         cv2.destroyAllWindows()
 
         self.height_l, self.width_l = img_l.shape
@@ -362,7 +363,6 @@ stereo0:
         size = (self.width_l, self.height_l)
 
         if args.model == 'pinhole':
-            # 单目标定，得到重投影误差、内参、畸变参、外参Rt
             calib_criteria = None
             # calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
             # calib_flags = None
@@ -399,13 +399,13 @@ stereo0:
                                                                                       criteria=calib_criteria)
             print(f'-- Left image reprojection error: {reproj_err_l}, Right image reprojection error: {reproj_err_r}')
 
-            # 立体标定
+            # Stereo Calibration
             # flags = 0
-            # flags |= cv2.CALIB_FIX_INTRINSIC  # 不改变内参，只求解R、T、E、F
-            # flags |= cv2.CALIB_USE_INTRINSIC_GUESS  # 优化内参
-            # flags |= cv2.CALIB_SAME_FOCAL_LENGTH  # 保持两相机的焦距一致，若有CALIB_FIX_PRINCIPAL_POINT，则主点也一致
-            # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT  # 不改变cx、cy，可能导致内参不准，一般不启用
-            # flags |= cv2.CALIB_RATIONAL_MODEL  # 启用k4、k5、k6
+            # flags |= cv2.CALIB_FIX_INTRINSIC  # not change intrinsic，reslove R、T、E、F
+            # flags |= cv2.CALIB_USE_INTRINSIC_GUESS  # optimize intrinsic
+            # flags |= cv2.CALIB_SAME_FOCAL_LENGTH  # keep the focal same of the left and right camera，if `CALIB_FIX_PRINCIPAL_POINT`，keep Principal Point same also
+            # flags |= cv2.CALIB_FIX_PRINCIPAL_POINT
+            # flags |= cv2.CALIB_RATIONAL_MODEL  # estimate k4、k5、k6
             # stereo_calib_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
             stereo_calib_criteria = None
             # stereo_calib_flags = None
@@ -509,7 +509,6 @@ stereo0:
             float(calib['distortion_r']['data'][4]),
             float(calib['distortion_r']['data'][5]),
         ]])
-        # 旋转矩阵和平移向量
         self.R = np.array([
             [float(calib['R']['data'][0]), float(calib['R']['data'][1]), float(calib['R']['data'][2])],
             [float(calib['R']['data'][3]), float(calib['R']['data'][4]), float(calib['R']['data'][5])],
@@ -546,7 +545,6 @@ stereo0:
                                     calib['Right']['P1'], calib['Right']['P2'], calib['Right']['K3'],
                                     calib['Right']['K4'], calib['Right']['K5'], calib['Right']['K6']
                                     ]])
-        # 旋转矩阵和平移向量
         self.R = np.array(calib['Rotate'])
         self.t = np.array(calib['Trans'])
         self.calc_map()
@@ -565,7 +563,6 @@ stereo0:
         ])
 
     def load_yaml(self, path_yaml):
-        # 读取YAML文件
         intrinsics_cam0 = None
         distortion_cam0 = None
         intrinsics_cam1 = None
@@ -594,48 +591,23 @@ stereo0:
                     self.width_l, self.height_l = values[0], values[1]
                     self.width_r, self.height_r = values[0], values[1]
                 elif line.startswith('T_cn_cnm1:'):
-                    reading_T = True  # 启动读取矩阵的标志
-                    T_cn_cnm1 = []  # 清空之前的内容
+                    reading_T = True
+                    T_cn_cnm1 = []
                 elif reading_T:
                     if line.startswith('- ['):
                         row = self.extract_list_from_line(line)
                         T_cn_cnm1.append(row)
                         if len(T_cn_cnm1) == 4:
-                            reading_T = False  # 读取完毕
+                            reading_T = False
         self.intr_l = self.get_intrinsic_matrix(intrinsics_cam0)
         self.intr_r = self.get_intrinsic_matrix(intrinsics_cam1)
         self.distort_l = np.array(distortion_cam0)
         self.distort_r = np.array(distortion_cam1)
         T = np.array(T_cn_cnm1)
-        # 旋转矩阵和平移向量
         self.R = np.array(T[:3, :3])
         self.t = np.array(T[:3, -1] * 1000)
         self.calc_map()
         print(f'-- Load [{path_yaml}] Success!')
-
-    def load_yaml_aceii(self, file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            # 直接使用 YAML 加载
-            data = yaml.safe_load(f)
-
-        # 把 YAML 加载出来的列表/嵌套列表转换为 numpy 数组
-        K_left = np.array(data["左立体内参矩阵"])
-        D_left = np.array(data["左立体畸变系数"][0])  # 注意：它是一个包含一个列表的列表
-        K_right = np.array(data["右立体内参矩阵"])
-        D_right = np.array(data["右立体畸变系数"][0])
-        R = np.array(data["外参旋转矩阵"])
-        T = np.array([row[0] for row in data["外参平移矩阵"]])
-
-        self.width_l, self.height_l = 2592, 1944
-        self.width_r, self.height_r = 2592, 1944
-        self.intr_l = K_left
-        self.intr_r = K_right
-        self.distort_l = D_left
-        self.distort_r = D_right
-        self.R = R
-        self.t = T
-        self.calc_map()
-        print(f'-- Load [{file_path}] Success!')
 
     def load_yaml_cv(self, file_path):
         fs = cv2.FileStorage(file_path, cv2.FILE_STORAGE_READ)
@@ -643,13 +615,11 @@ stereo0:
         if not fs.isOpened():
             raise IOError(f"Cannot open file: {file_path}")
 
-        # 读取数值（标量）
         # stereo_rms = fs.getNode("Stereo RMS").real()
         # epl_rms = fs.getNode("Epl RMS").real()
         # intrinsic1_rms = fs.getNode("Intrinsic1 RMS").real()
         # intrinsic2_rms = fs.getNode("Intrinsic2 RMS").real()
 
-        # 读取矩阵
         M1 = fs.getNode("M1").mat()
         D1 = fs.getNode("D1").mat()
         M2 = fs.getNode("M2").mat()
@@ -675,87 +645,13 @@ stereo0:
         print(f'-- Load [{file_path}] Success!')
 
 
-if __name__ == '__main1__':
-    print('=> =================== 1 ====================')
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed-mini\calib.json'
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\json\m.json'
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\calib.json'
-    # calib_file_path = r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1018-lh-1\stereo_4_1_lh_1018.json'  # rectified fx: 468.224548, fy: 468.224548, cx: 648.605103, cy: 298.273071, base_line: :0.069716
-    # calib_file_path = r'D:\VirtualBoxShare\0_ros2bag\data0\stereo_livox_imu_bag_20250529_1_ros1-camchain-imucam.yaml'
-    # calib_file_path = r'C:\Users\zhikang.zeng\Pictures\Saved Pictures\test\UCO00085_1T02D256B00010.yml'
-    calib_file_path = r'D:\VirtualBoxShare\4_stereo_imu_lidar_calib_20250624\2_stereo_calib\stereo_fish_gz_20250624.yaml'
-    print(f'=>=== Load calib json: {calib_file_path}')
-    sc = StereoCalib()
-    sc.load_yaml(calib_file_path)
-    # sc.load_json(calib_file_path)
-    print('-- left camera matrix:\n', sc.intr_l)
-    print('-- left distortion coeffs:', sc.distort_l)
-    print('-- right camera matrix:\n', sc.intr_r)
-    print('-- right distortion coeffs:', sc.distort_r)
-    print('-- R:\n', sc.R)
-    print('-- T:\n', sc.t)
-    sc.prt_stereo_param()
-    # sc.save_yaml(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\calib_lh_20240926\Rectification\stereo_8_lh.yaml')
-    # sc.save_json(r'D:\3_HoBot\3_RDK_X3_X5\14_Stereo\depth-analyse\230ai-stereo-imgs\stereo_8_custom.json')
-
-    # print('=> =================== 2 ====================')
-    raw_dir = r'D:\VirtualBoxShare\4_stereo_imu_lidar_calib_20250624\3_lidar_calib\stereo_livox_lidar_imu_bag_20250624_split\images\raw'
-    for raw_filename in os.listdir(raw_dir):
-        print('=> =================================')
-        if 'depth' in raw_filename: continue
-        if not raw_filename.endswith(('.png', '.jpg')): continue
-        print(f'=> {raw_filename}')
-        raw_filepath = os.path.join(raw_dir, raw_filename)
-        raw_img = cv2.imread(raw_filepath, cv2.IMREAD_COLOR)
-        height, width, _ = raw_img.shape
-        print(f'=> height: {height}, width: {width}')
-        # left_img = raw_img[height // 2:, :width // 2]
-        # right_img = raw_img[height // 2:, width // 2:]
-        left_img = raw_img[:height // 2, :]
-        right_img = raw_img[height // 2:, :]
-        os.makedirs(rf'{raw_dir}/../left', exist_ok=True)
-        os.makedirs(rf'{raw_dir}/../right', exist_ok=True)
-        cv2.imwrite(rf'{raw_dir}/../left/left{raw_filename[-8:]}', left_img)
-        cv2.imwrite(rf'{raw_dir}/../right/right{raw_filename[-8:]}', right_img)
-        print('=> =================================')
-
-    # 极线矫正，注意读入的图像目录
-    print('=> =================== 3 ====================')
-    left_img_filepaths = []
-    right_img_filepaths = []
-    for filepath, dirnames, filenames in os.walk(rf'{raw_dir}/..'):
-        for filename in filenames:
-            tmp_path = (os.path.join(filepath, filename))
-            if 'left' in tmp_path and 'rectify' not in tmp_path and tmp_path.endswith('.png'):
-                left_img_filepaths.append(tmp_path)
-            if 'right' in tmp_path and 'rectify' not in tmp_path and tmp_path.endswith('.png'):
-                right_img_filepaths.append(tmp_path)
-
-    assert len(left_img_filepaths) == len(right_img_filepaths)
-    for i in range(len(left_img_filepaths)):
-        filedir, left_filename = os.path.split(left_img_filepaths[i])
-        _, right_filename = os.path.split(right_img_filepaths[i])
-
-        print(f'=> Rectify img: {left_img_filepaths[i]} {right_img_filepaths[i]}')
-        img_l_rectified, img_r_rectified = sc.rectify_img(left_img_filepaths[i], right_img_filepaths[i])
-
-        result_dir = os.path.join(filedir, '..', 'rectify_kalibr')
-        os.makedirs(result_dir, exist_ok=True)
-
-        # cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-left.png'), img_l_rectified)
-        # cv2.imwrite(os.path.join(result_dir, f'{i + 1:>03}-right.png'), img_r_rectified)
-        cv2.imwrite(os.path.join(result_dir, f'left{i + 1:>06}.png'), img_l_rectified)
-        cv2.imwrite(os.path.join(result_dir, f'right{i + 1:>06}.png'), img_r_rectified)
-
 if __name__ == '__main__':
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\0925-zed\raw --row=12 --col=9 --block_size=20
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\1009-6\raw
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\data\calib_20\raw --row=21 --col=12 --block_size=60
     # python calib.py --raw_dir=D:\3_HoBot\3_RDK_X3_X5\14_Stereo\data\sc1336_raw_720p\raw --row=10 --col=6 --block_size=40 --model=fish
-    # 将combine的图像拆分成左右图像
     print('=> =================== 1 ====================')
     assert args.model in ['pinhole', 'fish']
-    # =========== 需要设置的参数 ===========
     print(colormsg(f'=> param:'
                    f'=> raw_dir={args.raw_dir}\n'
                    f'=> row={args.row}\n'
@@ -767,7 +663,6 @@ if __name__ == '__main__':
                    f'=> model={args.model}\n'
                    f'=> fov_scale={args.fov_scale}\n'
                    ))
-    # =========== 需要设置的参数 ===========
     if os.path.isdir(rf'{args.raw_dir}/../chessboard'):
         shutil.rmtree(rf'{args.raw_dir}/../chessboard')
     if os.path.isdir(rf'{args.raw_dir}/../left'):
@@ -795,7 +690,6 @@ if __name__ == '__main__':
         cv2.imwrite(rf'{args.raw_dir}/../left/left{raw_filename[-8:]}', left_img)
         cv2.imwrite(rf'{args.raw_dir}/../right/right{raw_filename[-8:]}', right_img)
 
-    # 将标定，注意设置左右图像文件夹和标定板行列以及方块大小，这里是12行9列，每个方块100mm
     print('=> =================== 2 ====================')
     sc = StereoCalib()
     sc.calib(dir_l=rf'{args.raw_dir}/../left', dir_r=rf'{args.raw_dir}/../right', row=args.row, col=args.col,
@@ -804,7 +698,6 @@ if __name__ == '__main__':
     sc.save_json(rf'{args.raw_dir}/../calib_{args.model}.json')
     sc.save_yaml(rf'{args.raw_dir}/../stereo_{args.model}.yaml')
 
-    # 极线矫正，注意读入的图像目录
     print('=> =================== 3 ====================')
     # raw_dir = r'./data/calc_disp-0819/raw'
     # for raw_filename in os.listdir(raw_dir):
@@ -828,7 +721,8 @@ if __name__ == '__main__':
     right_img_filepaths = []
     for filepath, dirnames, filenames in os.walk(rf'{args.raw_dir}/..'):
         # for filepath, dirnames, filenames in os.walk(rf'D:\3_HoBot\3_RDK_X3_X5\19_GZ\19700101_003613'):
-        for filename in filenames:
+        sorted_filenames = sorted(filenames)
+        for filename in sorted_filenames:
             tmp_path = (os.path.join(filepath, filename))
             if 'left' in tmp_path and 'rectify' not in tmp_path:
                 left_img_filepaths.append(tmp_path)
